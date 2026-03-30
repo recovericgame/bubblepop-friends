@@ -10,7 +10,7 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;}
-#app{width:100%;max-width:420px;margin:0 auto;height:100dvh;font-family:'Segoe UI',system-ui,sans-serif;border-radius:0;overflow:hidden;position:relative;}
+#app{width:100%;max-width:420px;margin:0 auto;height:100dvh;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;position:relative;}
 .scr{display:none;width:100%;height:100%;}
 .scr.on{display:block;}
 .home{min-height:100%;background:linear-gradient(155deg,#FFF3E0 0%,#FCE4EC 45%,#E8F5E9 100%);display:flex;flex-direction:column;align-items:center;padding:30px 18px 22px;text-align:center;overflow-y:auto;}
@@ -87,12 +87,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;}
 #praise-ov{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:18;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap;}
 #praise-ov.show{opacity:1;}
 .ptxt{font-size:20px;font-weight:900;color:#FF5C5C;background:rgba(255,255,255,.92);border-radius:16px;padding:10px 20px;}
-.balloon{position:absolute;cursor:pointer;animation:floatUp linear forwards;z-index:5;transform-origin:center bottom;}
+/* ✅ 풍선: filter를 CSS로 이동 (SVG 내부 filter 제거 → 네모 버그 수정) */
+.balloon{position:absolute;cursor:pointer;animation:floatUp linear forwards;z-index:5;transform-origin:center bottom;filter:drop-shadow(0 4px 10px rgba(0,0,0,0.22));}
 .bname{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;white-space:nowrap;background:rgba(255,255,255,.82);border-radius:8px;padding:1px 6px;color:#555;pointer-events:none;}
 .bname-r{background:rgba(255,255,255,.18);color:rgba(255,255,255,.9);}
-.pfx{position:absolute;pointer-events:none;z-index:10;animation:popFx .45s ease-out forwards;font-size:30px;line-height:1;}
-.pt{position:absolute;width:8px;height:8px;border-radius:50%;pointer-events:none;z-index:9;animation:ptFly .58s ease-out forwards;}
-.sfl{position:absolute;pointer-events:none;z-index:11;font-weight:900;font-size:13px;animation:scFloat .8s ease-out forwards;}
+.pfx{position:absolute;pointer-events:none;z-index:10;animation:popFx .5s ease-out forwards;font-size:36px;line-height:1;}
+/* ✅ 팝 링 이펙트 */
+.pop-ring{position:absolute;border-radius:50%;pointer-events:none;z-index:8;animation:ringEx .45s ease-out forwards;}
+@keyframes ringEx{0%{transform:scale(0.2);opacity:1;}100%{transform:scale(1);opacity:0;}}
+.pt{position:absolute;pointer-events:none;z-index:9;animation:ptFly .65s ease-out forwards;}
+.sfl{position:absolute;pointer-events:none;z-index:11;font-weight:900;font-size:14px;animation:scFloat .85s ease-out forwards;}
 .res{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:24px 16px 22px;text-align:center;overflow-y:auto;}
 .res-free{background:linear-gradient(160deg,#FFFDE7,#FFF0F8);}
 .res-rank{background:linear-gradient(160deg,#E8EAF6,#EDE7F6);}
@@ -139,9 +143,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;}
 .lbsc{font-size:13px;font-weight:900;color:#3949AB;}
 @keyframes bob{0%,100%{transform:translateY(0);}50%{transform:translateY(-7px);}}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0) rotate(0deg);}100%{opacity:0;transform:translateY(-650px) rotate(5deg);}}
-@keyframes popFx{0%{transform:scale(.3);opacity:1;}45%{transform:scale(1.7);opacity:1;}100%{transform:scale(.8);opacity:0;}}
-@keyframes ptFly{0%{transform:translate(0,0);opacity:1;}100%{transform:translate(var(--dx),var(--dy));opacity:0;}}
-@keyframes scFloat{0%{opacity:1;transform:translateY(0);}100%{opacity:0;transform:translateY(-44px);}}
+@keyframes popFx{0%{transform:scale(0.4);opacity:1;}40%{transform:scale(1.8);opacity:1;}100%{transform:scale(1.2) translateY(-30px);opacity:0;}}
+@keyframes ptFly{0%{transform:translate(0,0) scale(1);opacity:1;}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0;}}
+@keyframes scFloat{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-55px) scale(1.3);}}
 @keyframes cldDrift{from{left:-220px;}to{left:110%;}}
 </style>
 </head>
@@ -265,22 +269,233 @@ html,body{width:100%;height:100%;overflow:hidden;background:#1a1a2e;}
   <div class="lbwrap" id="lb-list"></div>
 </div></div>
 </div>
+
 <script>
+// ========== ✅ 오디오 엔진 v2 (항상 resume → 소리 안남 버그 수정) ==========
+const SND = {
+  ctx: null, bgmGain: null, sfxGain: null,
+  bgmTimer: null, bgmStep: 0, bgmActive: false, inited: false,
+
+  // ✅ 핵심: 소리 재생 전 항상 ctx 상태 확인 후 resume
+  _resume() {
+    if (!this.ctx) return Promise.resolve();
+    if (this.ctx.state === 'suspended') return this.ctx.resume();
+    return Promise.resolve();
+  },
+
+  init() {
+    if (!this.inited) {
+      try {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this.bgmGain = this.ctx.createGain();
+        this.bgmGain.gain.value = 0.15;
+        this.bgmGain.connect(this.ctx.destination);
+        this.sfxGain = this.ctx.createGain();
+        this.sfxGain.gain.value = 0.8;
+        this.sfxGain.connect(this.ctx.destination);
+        this.inited = true;
+      } catch(e) { return; }
+    }
+    // 항상 resume 시도
+    if (this.ctx && this.ctx.state !== 'running') this.ctx.resume();
+  },
+
+  _o(freq, type, vol, atk, dec, dest, delay) {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + (delay || 0);
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.connect(g); g.connect(dest || this.sfxGain);
+    o.type = type; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(vol, t + atk);
+    g.gain.exponentialRampToValueAtTime(0.001, t + atk + dec);
+    o.start(t); o.stop(t + atk + dec + 0.05);
+  },
+
+  playPop(isWave, combo) {
+    if (!this.ctx) return;
+    this._resume();
+    // 저음 타격감 (thump)
+    const ko = this.ctx.createOscillator();
+    const kg = this.ctx.createGain();
+    ko.connect(kg); kg.connect(this.sfxGain);
+    ko.type = 'sine';
+    ko.frequency.setValueAtTime(140, this.ctx.currentTime);
+    ko.frequency.exponentialRampToValueAtTime(35, this.ctx.currentTime + 0.08);
+    kg.gain.setValueAtTime(0.55, this.ctx.currentTime);
+    kg.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+    ko.start(); ko.stop(this.ctx.currentTime + 0.12);
+    // 팝 스윕 (메인 팝 사운드)
+    const o2 = this.ctx.createOscillator();
+    const g2 = this.ctx.createGain();
+    o2.connect(g2); g2.connect(this.sfxGain);
+    o2.type = 'sine';
+    const pf = 550 + Math.random()*350 + (combo > 4 ? 150 : 0);
+    o2.frequency.setValueAtTime(pf * 1.6, this.ctx.currentTime);
+    o2.frequency.exponentialRampToValueAtTime(pf * 0.25, this.ctx.currentTime + 0.2);
+    g2.gain.setValueAtTime(0.4, this.ctx.currentTime);
+    g2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.22);
+    o2.start(); o2.stop(this.ctx.currentTime + 0.25);
+    // 고음 반짝임
+    this._o(1200 + Math.random()*800, 'triangle', 0.1, 0.01, 0.22, this.sfxGain);
+    // 콤보 보너스음
+    if (combo >= 5) this._o(880, 'sine', 0.12, 0.02, 0.18, this.sfxGain, 0.07);
+    if (combo >= 8) this._o(1047, 'sine', 0.1, 0.02, 0.18, this.sfxGain, 0.12);
+    // 웨이브 코드음
+    if (isWave) {
+      [523,659,784].forEach((f,i) => this._o(f, 'sine', 0.14, 0.02, 0.35, this.sfxGain, i*0.04));
+    }
+  },
+
+  playWave() {
+    if (!this.ctx) return;
+    this._resume();
+    // 휘파람 상승
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.connect(g); g.connect(this.sfxGain);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(180, this.ctx.currentTime);
+    o.frequency.linearRampToValueAtTime(900, this.ctx.currentTime + 0.45);
+    g.gain.setValueAtTime(0.22, this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.55);
+    o.start(); o.stop(this.ctx.currentTime + 0.6);
+    [523,659,784,1047].forEach((f,i) => this._o(f,'sine',0.16,0.03,0.5,this.sfxGain,0.35+i*0.04));
+  },
+
+  // ✅ 인트로 징글 (홈 화면)
+  playIntro() {
+    if (!this.ctx) return;
+    this._resume();
+    [[523,0],[659,0.14],[784,0.28],[1047,0.42]].forEach(([f,d]) =>
+      this._o(f,'sine',0.18,0.03,0.32,this.sfxGain,d));
+    setTimeout(() => {
+      [523,659,784,1047].forEach(f => this._o(f,'sine',0.13,0.03,0.7,this.sfxGain));
+    }, 680);
+  },
+
+  // ✅ 랭크 인트로 (긴장감)
+  playRankIntro() {
+    if (!this.ctx) return;
+    this._resume();
+    [[261,0],[392,0.11],[523,0.22],[659,0.33],[784,0.44]].forEach(([f,d]) =>
+      this._o(f,'square',0.12,0.02,0.22,this.sfxGain,d));
+    setTimeout(() => {
+      [523,659,784].forEach((f,i) => this._o(f,'square',0.15,0.01,0.55,this.sfxGain,i*0.03));
+    }, 660);
+  },
+
+  // ✅ 배경음악 시퀀서
+  FREE_SEQ: [
+    [523,0.12,0.38],[659,0.10,0.32],[784,0.10,0.32],[659,0.08,0.32],
+    [523,0.12,0.42],[587,0.10,0.32],[698,0.10,0.32],[880,0.09,0.48],
+    [784,0.10,0.38],[659,0.10,0.32],[523,0.12,0.32],[659,0.08,0.32],
+    [784,0.10,0.42],[880,0.10,0.32],[784,0.10,0.32],[659,0.12,0.52],
+  ],
+  RANK_SEQ: [
+    [523,0.08,0.18],[784,0.08,0.15],[659,0.08,0.15],[523,0.08,0.18],
+    [784,0.08,0.15],[880,0.08,0.15],[784,0.08,0.18],[659,0.08,0.22],
+  ],
+
+  startBGM(mode) {
+    this.stopBGM();
+    this.bgmActive = true; this.bgmStep = 0;
+    // 짧은 딜레이 후 시작 (컨텍스트 준비 시간)
+    this._resume().then(() => this._bgmTick(mode));
+  },
+
+  _bgmTick(mode) {
+    if (!this.bgmActive || !this.ctx) return;
+    this._resume();
+    const seq = mode === 'rank' ? this.RANK_SEQ : this.FREE_SEQ;
+    const ms = mode === 'rank' ? 188 : 375;
+    const [freq, vol, dur] = seq[this.bgmStep % seq.length];
+    const type = mode === 'rank' ? 'square' : 'sine';
+    // 멜로디
+    this._o(freq, type, vol, 0.02, dur, this.bgmGain);
+    // 하모니 (장3도 위)
+    if (this.bgmStep % 2 === 0) this._o(freq * 1.26, 'sine', vol * 0.5, 0.02, dur * 0.8, this.bgmGain);
+    // 베이스 (4박마다)
+    if (this.bgmStep % 4 === 0) this._o(freq / 2, 'triangle', 0.09, 0.03, 0.5, this.bgmGain);
+    // 킥드럼
+    const kickEvery = mode === 'rank' ? 2 : 4;
+    if (this.bgmStep % kickEvery === 0) {
+      const ko2 = this.ctx.createOscillator();
+      const kg2 = this.ctx.createGain();
+      ko2.connect(kg2); kg2.connect(this.bgmGain);
+      ko2.type = 'sine';
+      ko2.frequency.setValueAtTime(160, this.ctx.currentTime);
+      ko2.frequency.exponentialRampToValueAtTime(38, this.ctx.currentTime + 0.1);
+      kg2.gain.setValueAtTime(0.2, this.ctx.currentTime);
+      kg2.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.13);
+      ko2.start(); ko2.stop(this.ctx.currentTime + 0.16);
+    }
+    // 랭크 하이햇 (노이즈)
+    if (mode === 'rank') {
+      try {
+        const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.04), this.ctx.sampleRate);
+        const d = buf.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = (Math.random()*2-1) * (1 - i/d.length);
+        const src = this.ctx.createBufferSource();
+        const hf = this.ctx.createBiquadFilter();
+        const hg = this.ctx.createGain();
+        src.buffer = buf;
+        hf.type = 'highpass'; hf.frequency.value = 7000;
+        src.connect(hf); hf.connect(hg); hg.connect(this.bgmGain);
+        hg.gain.value = 0.05;
+        src.start(); src.stop(this.ctx.currentTime + 0.05);
+      } catch(e) {}
+    }
+    this.bgmStep++;
+    this.bgmTimer = setTimeout(() => this._bgmTick(mode), ms);
+  },
+
+  stopBGM() {
+    clearTimeout(this.bgmTimer);
+    this.bgmActive = false; this.bgmStep = 0;
+  }
+};
+
+// ========== 게임 데이터 ==========
 const ANIMALS=[
-  {face:'🐻',ko:'곰',en:'Bear',gc:['#FFE0A0','#FFA726','#BF360C'],ears:'<circle cx="18" cy="13" r="11" fill="#FFA726"/><circle cx="62" cy="13" r="11" fill="#FFA726"/><circle cx="18" cy="13" r="7" fill="#FFAB91"/><circle cx="62" cy="13" r="7" fill="#FFAB91"/>',face_svg:'<ellipse cx="40" cy="50" rx="13" ry="9" fill="#FFAB91" opacity="0.55"/><circle cx="29" cy="36" r="4.5" fill="#2d1100"/><circle cx="51" cy="36" r="4.5" fill="#2d1100"/><circle cx="30.5" cy="34.5" r="1.8" fill="white"/><circle cx="52.5" cy="34.5" r="1.8" fill="white"/><ellipse cx="40" cy="48" rx="4" ry="3" fill="#2d1100"/><path d="M35 53 Q40 58 45 53" stroke="#2d1100" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
-  {face:'🐰',ko:'토끼',en:'Bunny',gc:['#FCE4EC','#F06292','#880E4F'],ears:'<ellipse cx="27" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="53" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="27" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/><ellipse cx="53" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/>',face_svg:'<circle cx="31" cy="37" r="4" fill="#1a0010"/><circle cx="49" cy="37" r="4" fill="#1a0010"/><circle cx="32.2" cy="35.8" r="1.5" fill="white"/><circle cx="50.2" cy="35.8" r="1.5" fill="white"/><ellipse cx="40" cy="47" rx="3" ry="2.5" fill="#1a0010"/><path d="M36 52 Q40 57 44 52" stroke="#1a0010" stroke-width="1.3" fill="none" stroke-linecap="round"/>'},
-  {face:'🐱',ko:'고양이',en:'Cat',gc:['#FFF9C4','#FFD54F','#E65100'],ears:'<polygon points="17,22 10,4 28,14" fill="#FFD54F"/><polygon points="63,22 70,4 52,14" fill="#FFD54F"/><polygon points="19,20 13,8 27,15" fill="#FFCCBC"/><polygon points="61,20 67,8 53,15" fill="#FFCCBC"/>',face_svg:'<ellipse cx="29" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(-8,29,37)"/><ellipse cx="51" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(8,51,37)"/><circle cx="30" cy="35.5" r="1.6" fill="white"/><circle cx="52" cy="35.5" r="1.6" fill="white"/><circle cx="40" cy="47" r="2.5" fill="#1a0800"/><path d="M36 52 Q40 56 44 52" stroke="#1a0800" stroke-width="1.3" fill="none" stroke-linecap="round"/>'},
-  {face:'🐶',ko:'강아지',en:'Dog',gc:['#FFF3E0','#FFCC80','#E65100'],ears:'<ellipse cx="12" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="68" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="12" cy="41" rx="6.5" ry="11" fill="#FFB74D"/><ellipse cx="68" cy="41" rx="6.5" ry="11" fill="#FFB74D"/>',face_svg:'<circle cx="30" cy="36" r="5" fill="#1a0800"/><circle cx="50" cy="36" r="5" fill="#1a0800"/><circle cx="31.8" cy="34.5" r="2" fill="white"/><circle cx="51.8" cy="34.5" r="2" fill="white"/><ellipse cx="40" cy="50" rx="8" ry="6" fill="#BF360C" opacity="0.45"/><ellipse cx="40" cy="49" rx="5" ry="3.5" fill="#1a0800"/><path d="M33 56 Q40 62 47 56" stroke="#1a0800" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
-  {face:'🐸',ko:'개구리',en:'Frog',gc:['#DCEDC8','#7CB342','#1B5E20'],ears:'<circle cx="24" cy="8" r="10" fill="#7CB342"/><circle cx="56" cy="8" r="10" fill="#7CB342"/><circle cx="24" cy="8" r="7" fill="#C5E1A5"/><circle cx="56" cy="8" r="7" fill="#C5E1A5"/><circle cx="24" cy="8" r="4" fill="#1B5E20"/><circle cx="56" cy="8" r="4" fill="#1B5E20"/>',face_svg:'<circle cx="33" cy="38" r="3.5" fill="#1B5E20"/><circle cx="47" cy="38" r="3.5" fill="#1B5E20"/><path d="M27 50 Q40 61 53 50" stroke="#1B5E20" stroke-width="2" fill="none" stroke-linecap="round"/>'},
-  {face:'🦊',ko:'여우',en:'Fox',gc:['#FFCCBC','#FF7043','#BF360C'],ears:'<polygon points="15,24 8,2 30,16" fill="#FF7043"/><polygon points="65,24 72,2 50,16" fill="#FF7043"/><polygon points="17,22 12,6 28,16" fill="#FFCCBC"/><polygon points="63,22 68,6 52,16" fill="#FFCCBC"/>',face_svg:'<circle cx="30" cy="36" r="4.5" fill="#1a0800"/><circle cx="50" cy="36" r="4.5" fill="#1a0800"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><polygon points="40,44 37,49 43,49" fill="#1a0800"/><path d="M35 53 Q40 58 45 53" stroke="#1a0800" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
-  {face:'🐼',ko:'판다',en:'Panda',gc:['#FAFAFA','#E0E0E0','#424242'],ears:'<circle cx="18" cy="13" r="11" fill="#212121"/><circle cx="62" cy="13" r="11" fill="#212121"/>',face_svg:'<ellipse cx="29" cy="37" rx="8" ry="7" fill="#212121"/><ellipse cx="51" cy="37" rx="8" ry="7" fill="#212121"/><circle cx="29" cy="37" r="4.5" fill="#111"/><circle cx="51" cy="37" r="4.5" fill="#111"/><circle cx="30.5" cy="35.5" r="1.8" fill="white"/><circle cx="52.5" cy="35.5" r="1.8" fill="white"/><circle cx="40" cy="48" r="3.5" fill="#212121"/><path d="M35 54 Q40 59 45 54" stroke="#212121" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
-  {face:'🐨',ko:'코알라',en:'Koala',gc:['#EDE7F6','#CE93D8','#4A148C'],ears:'<circle cx="14" cy="18" r="13" fill="#9E9E9E"/><circle cx="66" cy="18" r="13" fill="#9E9E9E"/><circle cx="14" cy="18" r="9" fill="#BDBDBD"/><circle cx="66" cy="18" r="9" fill="#BDBDBD"/>',face_svg:'<ellipse cx="40" cy="50" rx="9" ry="7" fill="#616161" opacity="0.45"/><ellipse cx="40" cy="49" rx="6.5" ry="5" fill="#212121"/><circle cx="30" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="50" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><path d="M35 56 Q40 60 45 56" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-linecap="round"/>'}
+  {face:'🐻',ko:'곰',en:'Bear',gc:['#FFE0A0','#FFA726','#BF360C'],
+   ears:'<circle cx="18" cy="13" r="11" fill="#FFA726"/><circle cx="62" cy="13" r="11" fill="#FFA726"/><circle cx="18" cy="13" r="7" fill="#FFAB91"/><circle cx="62" cy="13" r="7" fill="#FFAB91"/>',
+   face_svg:'<ellipse cx="40" cy="50" rx="13" ry="9" fill="#FFAB91" opacity="0.55"/><circle cx="29" cy="36" r="4.5" fill="#2d1100"/><circle cx="51" cy="36" r="4.5" fill="#2d1100"/><circle cx="30.5" cy="34.5" r="1.8" fill="white"/><circle cx="52.5" cy="34.5" r="1.8" fill="white"/><ellipse cx="40" cy="48" rx="4" ry="3" fill="#2d1100"/><path d="M35 53 Q40 58 45 53" stroke="#2d1100" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  {face:'🐰',ko:'토끼',en:'Bunny',gc:['#FCE4EC','#F06292','#880E4F'],
+   ears:'<ellipse cx="27" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="53" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="27" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/><ellipse cx="53" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/>',
+   face_svg:'<circle cx="31" cy="37" r="4" fill="#1a0010"/><circle cx="49" cy="37" r="4" fill="#1a0010"/><circle cx="32.2" cy="35.8" r="1.5" fill="white"/><circle cx="50.2" cy="35.8" r="1.5" fill="white"/><ellipse cx="40" cy="47" rx="3" ry="2.5" fill="#1a0010"/><path d="M36 52 Q40 57 44 52" stroke="#1a0010" stroke-width="1.3" fill="none" stroke-linecap="round"/>'},
+  {face:'🐱',ko:'고양이',en:'Cat',gc:['#FFF9C4','#FFD54F','#E65100'],
+   ears:'<polygon points="17,22 10,4 28,14" fill="#FFD54F"/><polygon points="63,22 70,4 52,14" fill="#FFD54F"/><polygon points="19,20 13,8 27,15" fill="#FFCCBC"/><polygon points="61,20 67,8 53,15" fill="#FFCCBC"/>',
+   face_svg:'<ellipse cx="29" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(-8,29,37)"/><ellipse cx="51" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(8,51,37)"/><circle cx="30" cy="35.5" r="1.6" fill="white"/><circle cx="52" cy="35.5" r="1.6" fill="white"/><circle cx="40" cy="47" r="2.5" fill="#1a0800"/><path d="M36 52 Q40 56 44 52" stroke="#1a0800" stroke-width="1.3" fill="none" stroke-linecap="round"/>'},
+  {face:'🐶',ko:'강아지',en:'Dog',gc:['#FFF3E0','#FFCC80','#E65100'],
+   ears:'<ellipse cx="12" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="68" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="12" cy="41" rx="6.5" ry="11" fill="#FFB74D"/><ellipse cx="68" cy="41" rx="6.5" ry="11" fill="#FFB74D"/>',
+   face_svg:'<circle cx="30" cy="36" r="5" fill="#1a0800"/><circle cx="50" cy="36" r="5" fill="#1a0800"/><circle cx="31.8" cy="34.5" r="2" fill="white"/><circle cx="51.8" cy="34.5" r="2" fill="white"/><ellipse cx="40" cy="50" rx="8" ry="6" fill="#BF360C" opacity="0.45"/><ellipse cx="40" cy="49" rx="5" ry="3.5" fill="#1a0800"/><path d="M33 56 Q40 62 47 56" stroke="#1a0800" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  {face:'🐸',ko:'개구리',en:'Frog',gc:['#DCEDC8','#7CB342','#1B5E20'],
+   ears:'<circle cx="24" cy="8" r="10" fill="#7CB342"/><circle cx="56" cy="8" r="10" fill="#7CB342"/><circle cx="24" cy="8" r="7" fill="#C5E1A5"/><circle cx="56" cy="8" r="7" fill="#C5E1A5"/><circle cx="24" cy="8" r="4" fill="#1B5E20"/><circle cx="56" cy="8" r="4" fill="#1B5E20"/>',
+   face_svg:'<circle cx="33" cy="38" r="3.5" fill="#1B5E20"/><circle cx="47" cy="38" r="3.5" fill="#1B5E20"/><path d="M27 50 Q40 61 53 50" stroke="#1B5E20" stroke-width="2" fill="none" stroke-linecap="round"/>'},
+  {face:'🦊',ko:'여우',en:'Fox',gc:['#FFCCBC','#FF7043','#BF360C'],
+   ears:'<polygon points="15,24 8,2 30,16" fill="#FF7043"/><polygon points="65,24 72,2 50,16" fill="#FF7043"/><polygon points="17,22 12,6 28,16" fill="#FFCCBC"/><polygon points="63,22 68,6 52,16" fill="#FFCCBC"/>',
+   face_svg:'<circle cx="30" cy="36" r="4.5" fill="#1a0800"/><circle cx="50" cy="36" r="4.5" fill="#1a0800"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><polygon points="40,44 37,49 43,49" fill="#1a0800"/><path d="M35 53 Q40 58 45 53" stroke="#1a0800" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  {face:'🐼',ko:'판다',en:'Panda',gc:['#FAFAFA','#E0E0E0','#424242'],
+   ears:'<circle cx="18" cy="13" r="11" fill="#212121"/><circle cx="62" cy="13" r="11" fill="#212121"/>',
+   face_svg:'<ellipse cx="29" cy="37" rx="8" ry="7" fill="#212121"/><ellipse cx="51" cy="37" rx="8" ry="7" fill="#212121"/><circle cx="29" cy="37" r="4.5" fill="#111"/><circle cx="51" cy="37" r="4.5" fill="#111"/><circle cx="30.5" cy="35.5" r="1.8" fill="white"/><circle cx="52.5" cy="35.5" r="1.8" fill="white"/><circle cx="40" cy="48" r="3.5" fill="#212121"/><path d="M35 54 Q40 59 45 54" stroke="#212121" stroke-width="1.5" fill="none" stroke-linecap="round"/>'},
+  {face:'🐨',ko:'코알라',en:'Koala',gc:['#EDE7F6','#CE93D8','#4A148C'],
+   ears:'<circle cx="14" cy="18" r="13" fill="#9E9E9E"/><circle cx="66" cy="18" r="13" fill="#9E9E9E"/><circle cx="14" cy="18" r="9" fill="#BDBDBD"/><circle cx="66" cy="18" r="9" fill="#BDBDBD"/>',
+   face_svg:'<ellipse cx="40" cy="50" rx="9" ry="7" fill="#616161" opacity="0.45"/><ellipse cx="40" cy="49" rx="6.5" ry="5" fill="#212121"/><circle cx="30" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="50" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><path d="M35 56 Q40 60 45 56" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-linecap="round"/>'}
 ];
+
 let _bid=0;
-function mkBalloon(a){const id=_bid++;const[lc,mc,dc]=a.gc;return `<svg viewBox="0 0 80 108" xmlns="http://www.w3.org/2000/svg" style="display:block;width:72px;height:97px;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.22))"><defs><radialGradient id="rg${id}" cx="30%" cy="24%" r="76%"><stop offset="0%" stop-color="${lc}"/><stop offset="52%" stop-color="${mc}"/><stop offset="100%" stop-color="${dc}"/></radialGradient></defs>${a.ears}<ellipse cx="40" cy="41" rx="31" ry="35" fill="url(#rg${id})"/><ellipse cx="25" cy="24" rx="10" ry="13" fill="rgba(255,255,255,0.38)" transform="rotate(-22,25,24)"/>${a.face_svg}<path d="M34 75 Q40 82 46 75 Q43 76 40 77 Q37 76 34 75Z" fill="${dc}" opacity="0.85"/><path d="M40 78 Q37 90 40 104" stroke="${dc}" stroke-width="1.8" fill="none" opacity="0.5"/></svg>`;}
+// ✅ SVG에서 filter 제거 (CSS .balloon에서 처리 → 네모 버그 수정)
+function mkBalloon(a){
+  const id=_bid++;const[lc,mc,dc]=a.gc;
+  return `<svg viewBox="0 0 80 108" xmlns="http://www.w3.org/2000/svg" style="display:block;width:72px;height:97px;"><defs><radialGradient id="rg${id}" cx="30%" cy="24%" r="76%"><stop offset="0%" stop-color="${lc}"/><stop offset="52%" stop-color="${mc}"/><stop offset="100%" stop-color="${dc}"/></radialGradient></defs>${a.ears}<ellipse cx="40" cy="41" rx="31" ry="35" fill="url(#rg${id})"/><ellipse cx="25" cy="24" rx="10" ry="13" fill="rgba(255,255,255,0.38)" transform="rotate(-22,25,24)"/>${a.face_svg}<path d="M34 75 Q40 82 46 75 Q43 76 40 77 Q37 76 34 75Z" fill="${dc}" opacity="0.85"/><path d="M40 78 Q37 90 40 104" stroke="${dc}" stroke-width="1.8" fill="none" opacity="0.5"/></svg>`;
+}
+
 const FREE_BG=`<svg viewBox="0 0 400 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#42A5C8"/><stop offset="60%" stop-color="#ADE5FA"/><stop offset="100%" stop-color="#C8F2A0"/></linearGradient></defs><rect width="400" height="700" fill="url(#fsky)"/><circle cx="340" cy="58" r="26" fill="#FFD740"/><circle cx="340" cy="58" r="18" fill="#FFF59D"/><g opacity="0.94" fill="white"><circle cx="62" cy="88" r="26"/><circle cx="92" cy="74" r="34"/><circle cx="128" cy="82" r="26"/><circle cx="42" cy="100" r="19"/></g><g opacity="0.88" fill="white"><circle cx="236" cy="116" r="20"/><circle cx="264" cy="104" r="27"/><circle cx="292" cy="111" r="21"/></g><ellipse cx="155" cy="720" rx="245" ry="72" fill="#66BB6A"/><rect x="0" y="668" width="400" height="32" fill="#43A047"/><g stroke="#388E3C" stroke-width="1.8" stroke-linecap="round"><line x1="40" y1="668" x2="40" y2="654"/><circle cx="40" cy="650" r="7" fill="#FF5252"/><line x1="100" y1="668" x2="100" y2="656"/><circle cx="100" cy="652" r="6" fill="#EC407A"/><line x1="160" y1="668" x2="160" y2="653"/><circle cx="160" cy="649" r="7" fill="#FF9800"/><line x1="220" y1="668" x2="220" y2="655"/><circle cx="220" cy="651" r="6" fill="#9C27B0"/><line x1="280" y1="668" x2="280" y2="654"/><circle cx="280" cy="650" r="7" fill="#2196F3"/><line x1="340" y1="668" x2="340" y2="656"/><circle cx="340" cy="652" r="6" fill="#4CAF50"/><line x1="385" y1="668" x2="385" y2="653"/><circle cx="385" cy="649" r="7" fill="#E91E63"/></g></svg>`;
 const RANK_BG=`<svg viewBox="0 0 400 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><defs><linearGradient id="rsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#03001A"/><stop offset="55%" stop-color="#080530"/><stop offset="100%" stop-color="#12104A"/></linearGradient></defs><rect width="400" height="700" fill="url(#rsky)"/><g fill="white"><circle cx="20" cy="28" r="1.2" opacity=".9"/><circle cx="88" cy="43" r="1.4" opacity=".8"/><circle cx="198" cy="13" r="1.3" opacity=".9"/><circle cx="278" cy="18" r="1.2" opacity=".8"/><circle cx="362" cy="22" r="1.4" opacity=".9"/><circle cx="112" cy="62" r="1.5" opacity=".9"/><circle cx="148" cy="38" r="2.2" opacity=".95"/><rect x="147" y="31" width="2" height="14" opacity=".35" fill="white"/><rect x="141" y="37" width="14" height="2" opacity=".35" fill="white"/><circle cx="328" cy="28" r="2.4" opacity=".95"/></g><circle cx="60" cy="65" r="33" fill="#FFFDE7"/><circle cx="60" cy="65" r="29" fill="#FFF9C4"/><path d="M-10 290 Q90 228 200 258 Q310 288 420 228" stroke="rgba(0,220,140,.1)" stroke-width="45" fill="none"/><polygon points="0,560 90,400 170,480 250,358 340,448 400,388 400,700 0,700" fill="#060618"/><polygon points="0,595 55,460 145,525 225,430 315,495 400,438 400,700 0,700" fill="#090828"/></svg>`;
-const PC=['#FF5C5C','#FFD93D','#6BCB77','#4D96FF','#FF922B','#CC5DE8','#20C997','#FF6EB4'];
+
+const PC=['#FF5C5C','#FFD93D','#6BCB77','#4D96FF','#FF922B','#CC5DE8','#20C997','#FF6EB4','#FF8C42','#A8FF3E'];
 const MOCK_LB=[{n:'김민준',f:'🇰🇷',s:1580},{n:'Yuki T.',f:'🇯🇵',s:1450},{n:'Emma W.',f:'🇺🇸',s:1320},{n:'이수아',f:'🇰🇷',s:1260},{n:'Liu Wei',f:'🇨🇳',s:1190},{n:'Carlos R.',f:'🇲🇽',s:1080},{n:'Sophie M.',f:'🇫🇷',s:990},{n:'Ahmed K.',f:'🇸🇦',s:930},{n:'Anna S.',f:'🇩🇪',s:870},{n:'박지호',f:'🇰🇷',s:800}];
 const SP={slow:{dur:5.6,vr:2,int:1280},normal:{dur:3.8,vr:1.5,int:900},fast:{dur:2.2,vr:.9,int:580}};
 const RANK_SP={dur:1.8,vr:.7,int:460};
@@ -289,9 +504,21 @@ const TXT={
   ko:{ltag:'귀여운 동물 풍선을 터트려요!',mfn:'자유 플레이',mft:'아기&유아 추천',mrn:'월드 랭크',mrt:'전 세계 경쟁',hff1:'시간 자유 선택',hff2:'멀티터치',hff3:'칭찬 메시지',hrf1:'60초 고정',hrf2:'싱글터치',hrf3:'글로벌 순위',sfb:'홈',sfh:'🎈 자유 플레이',sfnl:'이름',sftl:'플레이 시간',sfsl:'속도',fph:'이름 (선택)',tl30:'초',tl60:'분',tl120:'분',tl0:'자유',spfs:'느리게',spfn:'보통',spff:'빠르게',srb:'홈',srh:'월드 랭크 챌린지',srs:'60초, 최대 속도, 싱글터치.<br>오직 반응 속도만이 순위를 결정합니다.',rr1:'60초 고정',rr2:'최대 속도, 대량 풍선',rr3:'싱글 터치만 허용',rr4:'10개마다 웨이브 폭발',rph:'닉네임 (순위 등록용)',wave:'🌊 WAVE!',waved:'2배 점수!',praises:['잘했어요! 🌟','대단해요! 🔥','최고예요! 👑','완벽해요! 💫'],pbig:['처음이에요! 🎉','잘했어요! 🌟','많이 늘었어요! 🔥','새 기록! 👑','역대 최고! 🏆'],psub:['계속 해봐요!','실력이 늘고 있어요!','훨씬 잘해요!','정말 대단해요!','최고예요!'],rfpl:'풍선',rfpml:'분당',rfbl:'최고',rfpgl:'성장률',rrpts:'점',rrnb:'🌟 새 최고 기록!',bk1:'기본',bk2:'콤보',bk3:'웨이브',bk4:'풍선',bk5:'최종',wpth:'🌍 내 세계 순위',me:'나',btitle:'🌍 글로벌 순위'},
   en:{ltag:'Pop the cute animal balloons!',mfn:'Free Play',mft:'For babies & toddlers',mrn:'World Rank',mrt:'Compete globally',hff1:'Choose time',hff2:'Multi-touch',hff3:'Praise messages',hrf1:'60 sec fixed',hrf2:'Single touch',hrf3:'Global ranking',sfb:'Home',sfh:'🎈 Free Play',sfnl:'Name',sftl:'Play Time',sfsl:'Speed',fph:'Name (optional)',tl30:'sec',tl60:'min',tl120:'min',tl0:'Free',spfs:'Slow',spfn:'Normal',spff:'Fast',srb:'Home',srh:'World Rank Challenge',srs:'60 sec, max speed, single touch.<br>Only reflexes decide your rank.',rr1:'60 seconds fixed',rr2:'Max speed, wave mode',rr3:'Single touch only',rr4:'Wave burst every 10 pops',rph:'Nickname (for leaderboard)',wave:'🌊 WAVE!',waved:'Double points!',praises:['Good! 🌟','Amazing! 🔥','Awesome! 👑','Perfect! 💫'],pbig:['First time! 🎉','Good job! 🌟','Much better! 🔥','New record! 👑','All-time best! 🏆'],psub:['Keep going!','Improving!','Way better!','Amazing!','World class!'],rfpl:'Pops',rfpml:'Per min',rfbl:'Best',rfpgl:'Progress',rrpts:'pts',rrnb:'🌟 New Best!',bk1:'Base',bk2:'Combo',bk3:'Wave',bk4:'Pops',bk5:'Final',wpth:'🌍 My World Rank',me:'Me',btitle:'🌍 Global Ranking'}
 };
+
 let G={lang:'ko',mode:'free',freeTime:60,freeSpeed:'normal',score:0,pops:0,combo:0,wavePops:0,waveCount:0,basePts:0,comboPts:0,wavePts:0,timeLeft:60,isWave:false,gameRunning:false,sessionBest:0,allBest:0,prevBest:0,spawnT:null,intT:null,comboT:null,waveT:null,praiseT:null};
 let sessionRank=[];
-function show(id){document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));document.getElementById(id).classList.add('on');}
+let introPlayed=false;
+
+// ✅ 모든 터치마다 오디오 컨텍스트 깨우기
+document.addEventListener('pointerdown', function() {
+  SND.init();
+  if (!introPlayed && SND.ctx) { introPlayed=true; setTimeout(()=>SND.playIntro(), 100); }
+});
+
+function show(id){
+  document.querySelectorAll('.scr').forEach(s=>s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+}
 function setLang(l){G.lang=l;document.querySelectorAll('.lb').forEach(b=>b.classList.toggle('on',b.dataset.l===l));applyLang();}
 function applyLang(){
   const t=TXT[G.lang];
@@ -304,8 +531,7 @@ function applyLang(){
   s('tl30',t.tl30);s('tl60',t.tl60);s('tl120',t.tl120);s('tl0',t.tl0);
   s('spfs',t.spfs);s('spfn',t.spfn);s('spff',t.spff);
   s('srb',t.srb);s('srh',t.srh);sh('srs',t.srs);
-  s('rr1',t.rr1);s('rr2',t.rr2);s('rr3',t.rr3);s('rr4',t.rr4);
-  p('rank-name',t.rph);
+  s('rr1',t.rr1);s('rr2',t.rr2);s('rr3',t.rr3);s('rr4',t.rr4);p('rank-name',t.rph);
   s('rf-pl',t.rfpl);s('rf-pml',t.rfpml);s('rf-bl',t.rfbl);s('rf-pgl',t.rfpgl);
   s('rr-pts',t.rrpts);s('rr-nb',t.rrnb);
   s('bk1l',t.bk1);s('bk2l',t.bk2);s('bk3l',t.bk3);s('bk4l',t.bk4);s('bk5l',t.bk5);
@@ -319,14 +545,20 @@ function applyLang(){
   const rrbb=document.getElementById('rrb-b');if(rrbb)rrbb.textContent=G.lang==='ko'?'🌍 전체 순위':'🌍 Full Ranking';
   const rrbh=document.getElementById('rrb-h');if(rrbh)rrbh.textContent=G.lang==='ko'?'🏠 홈':'🏠 Home';
 }
-function showSetup(m){show(m==='rank'?'s-setup-rank':'s-setup-free');}
+function showSetup(m){
+  SND.init();
+  if(m==='rank') setTimeout(()=>SND.playRankIntro(), 100);
+  show(m==='rank'?'s-setup-rank':'s-setup-free');
+}
 function setFT(t){G.freeTime=t;document.querySelectorAll('#s-setup-free .tmc').forEach(c=>c.classList.toggle('on',c.dataset.t==t));}
 function setFS(s){G.freeSpeed=s;document.querySelectorAll('#s-setup-free .spc').forEach(c=>c.classList.toggle('on',c.dataset.sp===s));}
+
 function startGame(m){
+  SND.init();
   G.mode=m;G.score=0;G.pops=0;G.combo=0;G.wavePops=0;G.waveCount=0;G.basePts=0;G.comboPts=0;G.wavePts=0;G.isWave=false;G.gameRunning=true;G.prevBest=G.sessionBest;
   clearTimeout(G.spawnT);clearInterval(G.intT);clearTimeout(G.comboT);clearTimeout(G.waveT);clearTimeout(G.praiseT);
   const gc=document.getElementById('gc');
-  gc.querySelectorAll('.balloon,.pfx,.pt,.sfl,.cld-el').forEach(e=>e.remove());
+  gc.querySelectorAll('.balloon,.pfx,.pt,.sfl,.cld-el,.pop-ring').forEach(e=>e.remove());
   const isR=m==='rank';
   document.getElementById('game-bg').innerHTML=isR?RANK_BG:FREE_BG;
   document.getElementById('hsc').className='hsc '+(isR?'hsc-r':'hsc-f');
@@ -335,6 +567,8 @@ function startGame(m){
   document.getElementById('wbadge').className=isR?'wbg-r':'wbg-f';
   G.timeLeft=isR?60:(G.freeTime>0?G.freeTime:-1);
   spawnClouds(isR);show('s-game');updateHUD();
+  // ✅ 배경음악 시작
+  SND.startBGM(m);
   if(isR){
     for(let i=0;i<4;i++)setTimeout(spawnBalloon,i*160);
     let si=RANK_SP.int;
@@ -347,6 +581,7 @@ function startGame(m){
     if(G.freeTime>0)G.intT=setInterval(()=>{if(!G.gameRunning)return;G.timeLeft--;updateHUD();if(G.timeLeft<=0)endGame();},1000);
   }
 }
+
 function spawnBalloon(){
   if(!G.gameRunning)return;
   const gc=document.getElementById('gc');
@@ -369,6 +604,7 @@ function spawnBalloon(){
   el.addEventListener('animationend',()=>el.remove());
   gc.appendChild(el);
 }
+
 function doPop(el,a,gc,px,py){
   el.remove();
   const basePt=G.mode==='rank'?3:1;
@@ -383,39 +619,62 @@ function doPop(el,a,gc,px,py){
   updateHUD();
   if(G.mode==='rank'){updateWP();if(G.wavePops>=WAVE_AT)triggerWave();}
   if(G.mode==='free'&&G.pops%5===0)showPraise();
+
+  // ✅ 팝 이펙트 (더 큰 이모지 + 업그레이드)
   const fx=document.createElement('div');fx.className='pfx';
-  fx.style.cssText=`left:${px-16}px;top:${py-16}px;`;fx.textContent=a.face;
+  fx.style.cssText=`left:${px-20}px;top:${py-20}px;`;fx.textContent=a.face;
   gc.appendChild(fx);fx.addEventListener('animationend',()=>fx.remove());
-  for(let i=0;i<11;i++){
+
+  // ✅ 팝 링 이펙트 (쾌감 향상)
+  const ringColor=G.isWave?'#FFD700':PC[Math.floor(Math.random()*PC.length)];
+  const ring=document.createElement('div');ring.className='pop-ring';
+  const rs=60+mult*10;
+  ring.style.cssText=`left:${px-rs/2}px;top:${py-rs/2}px;width:${rs}px;height:${rs}px;border:4px solid ${ringColor};opacity:0.9;`;
+  gc.appendChild(ring);ring.addEventListener('animationend',()=>ring.remove());
+
+  // ✅ 파티클 (더 많고 다양한 크기)
+  const ptCount=G.isWave?18:12;
+  for(let i=0;i<ptCount;i++){
     const p=document.createElement('div');p.className='pt';
-    const ang=(i/11)*Math.PI*2,d=34+Math.random()*42;
-    p.style.cssText=`left:${px-4}px;top:${py-4}px;background:${PC[i%PC.length]};animation-delay:${Math.random()*.05}s;`;
-    p.style.setProperty('--dx',Math.cos(ang)*d+'px');p.style.setProperty('--dy',Math.sin(ang)*d+'px');
+    const ang=(i/ptCount)*Math.PI*2 + Math.random()*0.3;
+    const d=38+Math.random()*52;
+    const sz=4+Math.random()*8;
+    p.style.cssText=`left:${px-sz/2}px;top:${py-sz/2}px;width:${sz}px;height:${sz}px;border-radius:${sz/2}px;background:${PC[i%PC.length]};animation-delay:${Math.random()*.06}s;`;
+    p.style.setProperty('--dx',Math.cos(ang)*d+'px');
+    p.style.setProperty('--dy',Math.sin(ang)*d+'px');
     gc.appendChild(p);p.addEventListener('animationend',()=>p.remove());
   }
+
+  // ✅ 점수 팝업
   const sf=document.createElement('div');sf.className='sfl';
   const cstr=mult>1?` x${mult===1.5?'1.5':mult}`:'';
   sf.textContent=`+${pts}${cstr}${G.isWave?' 🌊':''}`;
-  sf.style.cssText=`left:${px-22}px;top:${py-36}px;color:${G.isWave?'#FF5C5C':G.mode==='rank'?'#FFD700':'#333'};text-shadow:0 1px 5px rgba(0,0,0,.2);`;
+  sf.style.cssText=`left:${px-26}px;top:${py-40}px;color:${G.isWave?'#FFD700':G.mode==='rank'?'#FFD700':'#333'};text-shadow:0 1px 5px rgba(0,0,0,.3);`;
   gc.appendChild(sf);sf.addEventListener('animationend',()=>sf.remove());
-  try{const ctx=new(window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sine';const f=460+Math.random()*440;o.frequency.setValueAtTime(f,ctx.currentTime);o.frequency.exponentialRampToValueAtTime(150,ctx.currentTime+.18);g.gain.setValueAtTime(.13,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.2);o.start();o.stop(ctx.currentTime+.22);}catch(e){}
+
+  // ✅ 오디오 (싱글턴 사용 → 소리 끊김 해결)
+  SND.playPop(G.isWave, G.combo);
 }
+
 function showPraise(){
   const t=TXT[G.lang];
   document.getElementById('ptxt').textContent=t.praises[Math.floor(Math.random()*t.praises.length)];
   const ov=document.getElementById('praise-ov');
   ov.classList.add('show');clearTimeout(G.praiseT);G.praiseT=setTimeout(()=>ov.classList.remove('show'),1200);
 }
+
 function triggerWave(){
   if(G.isWave)return;G.isWave=true;G.wavePops=0;G.waveCount++;
   const t=TXT[G.lang];
   document.getElementById('wt1').textContent=t.wave;
   document.getElementById('wt2').textContent=`${G.waveCount}번째! ${t.waved}`;
   document.getElementById('wov').classList.add('show');
+  SND.playWave();
   for(let i=0;i<14;i++)setTimeout(spawnBalloon,i*100);
   G.waveT=setTimeout(()=>{document.getElementById('wov').classList.remove('show');G.isWave=false;},4500);
   updateWP();
 }
+
 function updateHUD(){
   const sc=document.getElementById('hsc');if(sc)sc.textContent='🎈 '+G.score.toLocaleString();
   const tm=document.getElementById('htm');const tf=document.getElementById('htf');
@@ -434,9 +693,11 @@ function updateWP(){
 }
 function endGame(){
   G.gameRunning=false;clearTimeout(G.spawnT);clearInterval(G.intT);clearTimeout(G.comboT);clearTimeout(G.waveT);
+  SND.stopBGM(); // ✅ BGM 정지
   if(G.mode==='free')showRF();else showRR();
 }
 function endNow(){endGame();}
+
 function showRF(){
   const t=TXT[G.lang];
   const secs=G.freeTime>0?G.freeTime:Math.max(1,G.pops*1.9);
