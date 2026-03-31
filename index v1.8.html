@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#1A237E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>BubblePop Friends</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#111}
+#app{width:100%;max-width:420px;margin:0 auto;height:100dvh;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;position:relative}
+.scr{display:none;width:100%;height:100%}
+.scr.on{display:block}
+
+/* 홈 */
+.home{min-height:100%;background:linear-gradient(155deg,#FFF3E0,#FCE4EC 45%,#E8F5E9);display:flex;flex-direction:column;align-items:center;padding:28px 18px 22px;text-align:center;overflow-y:auto}
+.logo{font-size:54px;animation:bob 2s ease-in-out infinite;margin-bottom:6px}
+.logo-h{font-size:26px;font-weight:900;color:#222;letter-spacing:-.5px}
+.logo-h em{color:#FF5C5C;font-style:normal}
+.logo-s{font-size:11px;color:#ccc;letter-spacing:2px;margin-bottom:16px}
+.ltog{display:flex;background:#EEE;border-radius:22px;padding:3px;margin-bottom:8px;width:170px}
+.lb{flex:1;padding:7px;border-radius:19px;border:none;background:transparent;font-size:13px;font-weight:700;color:#bbb;cursor:pointer}
+.lb.on{background:#fff;color:#333;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+/* 진동 토글 */
+.vtog-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:12px;color:#999}
+.vtog{width:40px;height:22px;background:#DDD;border-radius:11px;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0;border:none}
+.vtog.on{background:#66BB6A}
+.vtog::after{content:'';position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.vtog.on::after{left:20px}
+.mcards{display:flex;flex-direction:column;gap:12px;width:100%}
+.mc{border-radius:20px;padding:18px;cursor:pointer;transition:transform .12s;border:none;text-align:left;width:100%}
+.mc:active{transform:scale(.97)}
+.mc-free{background:linear-gradient(135deg,#FFFDE7,#FFF0F8);border:2.5px solid #FFCC80}
+.mc-rank{background:linear-gradient(135deg,#E8EAF6,#EDE7F6);border:2.5px solid #9FA8DA}
+.mch{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.mcicon{font-size:28px}
+.mcname{font-size:16px;font-weight:900;color:#333}
+.mctag{font-size:11px;color:#aaa;margin-top:1px}
+.mcbadge{font-size:11px;font-weight:800;border-radius:9px;padding:3px 9px;margin-left:auto}
+.bf-badge{background:#FFF3CD;color:#E65100}
+.br-badge{background:#E8EAF6;color:#3949AB}
+.mcfeats{display:flex;gap:5px;flex-wrap:wrap}
+.mf{font-size:11px;background:rgba(255,255,255,.75);border-radius:8px;padding:2px 8px;color:#888;font-weight:600}
+
+/* 셋업 */
+.setup{height:100%;background:#FFFEF8;padding:16px;overflow-y:auto}
+.bk{display:flex;align-items:center;gap:4px;background:none;border:none;cursor:pointer;font-size:13px;color:#bbb;margin-bottom:12px}
+.sh{font-size:18px;font-weight:900;color:#333;margin-bottom:16px}
+.ssec{margin-bottom:15px}
+.slbl{font-size:10px;font-weight:800;color:#ccc;letter-spacing:1.5px;margin-bottom:7px}
+.ni{width:100%;padding:11px 14px;border-radius:12px;border:2px solid #EEE;font-size:15px;background:#FAFAFA;color:#333;outline:none}
+.tmg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.tmc{border-radius:12px;border:2px solid #EEE;background:#FAFAFA;padding:10px 3px;text-align:center;cursor:pointer}
+.tmc.on{border-color:#FF9A3C;background:#FFF5EC}
+.tv{font-size:14px;font-weight:900;color:#bbb}
+.tmc.on .tv{color:#FF9A3C}
+.tl{font-size:10px;color:#ccc}
+.spg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.spc{border-radius:12px;border:2px solid #EEE;background:#FAFAFA;padding:11px 3px;text-align:center;cursor:pointer}
+.spc.on{border-color:#FF9A3C;background:#FFF5EC}
+.spi{font-size:18px;display:block;margin-bottom:2px}
+.spn{font-size:12px;font-weight:700;color:#bbb}
+.spc.on .spn{color:#FF9A3C}
+.rs-wrap{height:100%;background:linear-gradient(160deg,#1A237E,#311B92);padding:18px;display:flex;flex-direction:column;align-items:center;overflow-y:auto}
+.rsr-wrap{width:100%;background:rgba(255,255,255,.08);border-radius:14px;padding:10px 12px;margin-bottom:14px}
+.rsr{display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px;color:#C5CAE9}
+.rsr:last-child{border:none}
+
+/* 게임 화면 */
+#s-game{position:relative}
+#gc{width:100%;height:100dvh;position:relative;overflow:hidden;touch-action:none}
+#game-bg{position:absolute;inset:0;width:100%;height:100%}
+#ghud{position:absolute;top:0;left:0;right:0;z-index:20;padding:9px 9px 0;pointer-events:none}
+.hrow{display:flex;gap:7px;align-items:center;margin-bottom:5px}
+.hsc{border-radius:15px;padding:6px 11px;font-size:14px;font-weight:900;flex:1;text-align:center}
+.hsc-f{background:rgba(255,255,255,.9);color:#333}
+.hsc-r{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.htm{border-radius:15px;padding:6px 9px;font-size:14px;font-weight:900;min-width:50px;text-align:center}
+.htm-f{background:rgba(255,255,255,.9);color:#333}
+.htm-r{background:rgba(255,255,255,.15);color:#FFE082;border:1px solid rgba(255,255,255,.25)}
+.htm.red{color:#FF5252!important;background:rgba(255,80,80,.2)}
+.hhbtn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.88);border:none;font-size:14px;cursor:pointer;pointer-events:all;display:flex;align-items:center;justify-content:center}
+.htbar{width:100%;height:5px;background:rgba(255,255,255,.25);border-radius:3px;overflow:hidden}
+.htf{height:100%;border-radius:3px;transition:width .5s linear,background .4s}
+#wprog{position:absolute;bottom:42px;left:10px;right:10px;z-index:10;pointer-events:none}
+.wplb{font-size:10px;font-weight:700;color:rgba(255,255,255,.7);text-align:center;margin-bottom:3px}
+.wpb{height:5px;background:rgba(255,255,255,.2);border-radius:3px;overflow:hidden}
+.wpf{height:100%;background:rgba(255,255,255,.75);border-radius:3px;transition:width .15s}
+.wpf.wv{background:#FFD700}
+#wov{position:absolute;inset:0;z-index:15;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .3s;pointer-events:none}
+#wov.on{opacity:1}
+.wbg-f{background:linear-gradient(135deg,#FF9A3C,#FF5C5C);border-radius:26px;padding:16px 32px;text-align:center;box-shadow:0 6px 24px rgba(255,92,92,.5)}
+.wbg-r{background:linear-gradient(135deg,#1A237E,#4A148C);border-radius:26px;padding:16px 32px;text-align:center;border:3px solid #FFD740;box-shadow:0 6px 24px rgba(255,215,0,.35)}
+.wicon{font-size:42px;display:block;margin-bottom:4px;animation:bob .4s ease-in-out infinite alternate}
+.wtag{font-size:10px;font-weight:900;letter-spacing:3px;color:rgba(255,255,255,.7);display:block}
+.wt1{font-size:26px;font-weight:900;color:#fff;display:block}
+.wt2{font-size:12px;color:rgba(255,255,255,.88);font-weight:700;display:block;margin-top:4px}
+#praise-ov{position:absolute;top:42%;left:50%;transform:translate(-50%,-50%);z-index:18;pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap}
+#praise-ov.on{opacity:1}
+.ptxt{font-size:20px;font-weight:900;color:#FF5C5C;background:rgba(255,255,255,.92);border-radius:16px;padding:10px 20px}
+
+/* 풍선 & 이펙트 */
+.balloon{position:absolute;cursor:pointer;animation:floatUp linear forwards;z-index:5;transform-origin:center bottom}
+.bname{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:700;white-space:nowrap;background:rgba(255,255,255,.82);border-radius:8px;padding:1px 6px;color:#555;pointer-events:none}
+.bname-r{background:rgba(255,255,255,.18);color:rgba(255,255,255,.9)}
+.pfx{position:absolute;pointer-events:none;z-index:10;animation:popFx .5s ease-out forwards;font-size:36px;line-height:1;background:transparent!important;border:none!important}
+.pt{position:absolute;pointer-events:none;z-index:9;border-radius:50%;animation:ptFly .65s ease-out forwards;background:#FF5C5C}
+.sfl{position:absolute;pointer-events:none;z-index:11;font-weight:900;font-size:14px;animation:scFloat .85s ease-out forwards;background:transparent!important;border:none!important}
+
+/* 결과 */
+.res{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:24px 16px 22px;text-align:center;overflow-y:auto}
+.res-free{background:linear-gradient(160deg,#FFFDE7,#FFF0F8)}
+.res-rank{background:linear-gradient(160deg,#E8EAF6,#EDE7F6)}
+.ra{font-size:52px;animation:bob 2s ease-in-out infinite;margin-bottom:4px}
+.rp{font-size:20px;font-weight:900;color:#FF5C5C;margin-bottom:2px}
+.rsub2{font-size:13px;color:#bbb;margin-bottom:10px}
+.strow{display:flex;gap:8px;width:100%;margin:8px 0}
+.stc{flex:1;background:#fff;border-radius:14px;padding:10px 5px}
+.stv{font-size:20px;font-weight:900;color:#FF9A3C}
+.stl{font-size:10px;color:#aaa;margin-top:2px}
+.pgwrap{width:100%;background:#fff;border-radius:14px;padding:11px 13px;margin:3px 0}
+.pglbl{display:flex;justify-content:space-between;font-size:12px;color:#aaa;margin-bottom:5px}
+.pgbar{height:9px;background:#F0F0F0;border-radius:5px;overflow:hidden}
+.pgfill{height:100%;border-radius:5px;background:linear-gradient(90deg,#FF9A3C,#FF5C5C);transition:width .6s ease}
+.rscore{font-size:50px;font-weight:900;color:#3949AB;letter-spacing:-2px;margin:3px 0}
+.rnewbest{display:inline-block;background:linear-gradient(135deg,#FFD700,#FF6F00);color:#fff;border-radius:12px;padding:4px 14px;font-size:12px;font-weight:900;margin-bottom:8px}
+.bkcard{width:100%;background:rgba(255,255,255,.75);border-radius:16px;padding:11px 13px;margin-bottom:8px}
+.bkrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(200,200,220,.2);font-size:13px;color:#666}
+.bkrow:last-child{border:none;font-weight:900;color:#3949AB;font-size:15px}
+.bkv{color:#3949AB;font-weight:700}
+.wposcard{width:100%;background:rgba(255,255,255,.75);border-radius:16px;padding:11px 13px;margin-bottom:8px}
+.wpth{font-size:11px;font-weight:800;color:#9FA8DA;text-align:left;margin-bottom:7px}
+.wpr{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:13px}
+.wpr.me{background:rgba(255,255,255,.6);border-radius:9px;padding:4px 7px;margin:-2px -3px}
+.wprank{width:22px;font-weight:900;color:#bbb;text-align:center;font-size:12px}
+.wprank.g{color:#FFB800;font-size:14px}
+.wprank.s{color:#9EA3A8}
+.wprank.b{color:#B87333}
+.wpflag{font-size:15px}
+.wpname{flex:1;font-size:12px;font-weight:700;color:#333}
+.wpscore{font-weight:900;color:#3949AB;font-size:13px}
+.metag{font-size:9px;background:#3949AB;color:#fff;border-radius:6px;padding:1px 5px;margin-left:3px}
+.rbtns{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:8px}
+
+/* 순위판 */
+.board{min-height:100%;background:#FFFEF8;padding:14px;overflow-y:auto}
+.bhead{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.btitle{font-size:18px;font-weight:900;color:#333;flex:1}
+.lbwrap{background:#fff;border-radius:18px;overflow:hidden}
+.lbr{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid #F8F8F8}
+.lbr:last-child{border:none}
+.lbr.me{background:linear-gradient(90deg,#EEF3FF,#EDE7F6)}
+.lbrk{width:24px;font-size:12px;font-weight:900;color:#ccc;text-align:center}
+.lbflag{font-size:15px}
+.lbname{flex:1;font-size:12px;font-weight:700;color:#333}
+.lbsc{font-size:13px;font-weight:900;color:#3949AB}
+
+/* 버튼 공통 */
+.btn-free{display:block;width:100%;padding:14px;border-radius:36px;border:none;font-size:16px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#FF9A3C,#FF5C5C);color:#fff}
+.btn-rank{display:block;width:100%;padding:15px;border-radius:40px;border:none;font-size:17px;font-weight:900;cursor:pointer;background:linear-gradient(135deg,#FFD740,#FF6D00);color:#fff;letter-spacing:.5px}
+.btn-blue{display:block;width:100%;padding:13px;border-radius:34px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:linear-gradient(135deg,#3949AB,#7B5FFF);color:#fff}
+.btn-gray{display:block;width:100%;padding:13px;border-radius:34px;border:none;font-size:14px;font-weight:800;cursor:pointer;background:#F0F0F0;color:#999}
+
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) rotate(0deg)}100%{opacity:0;transform:translateY(-660px) rotate(5deg)}}
+@keyframes popFx{0%{transform:scale(.5);opacity:1}50%{transform:scale(1.9);opacity:1}100%{transform:scale(1.3) translateY(-28px);opacity:0}}
+@keyframes ptFly{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(0);opacity:0}}
+@keyframes scFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-55px) scale(1.2)}}
+@keyframes cldDrift{from{left:-220px}to{left:110%}}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- 홈 -->
+<div id="s-home" class="scr on">
+<div class="home">
+  <span class="logo">🎈</span>
+  <h1 class="logo-h">Bubble<em>Pop</em> Friends</h1>
+  <p class="logo-s" id="h-tag">CUTE ANIMAL BALLOON POP</p>
+  <div class="ltog">
+    <button class="lb on" data-l="ko" onclick="setLang('ko')">한국어</button>
+    <button class="lb" data-l="en" onclick="setLang('en')">English</button>
+  </div>
+  <div class="vtog-row">
+    <button id="vtog" class="vtog" onclick="toggleVibrate()"></button>
+    <span id="vtog-label">진동 꺼짐</span>
+  </div>
+  <div class="mcards">
+    <button class="mc mc-free" onclick="showSetup('free')">
+      <div class="mch"><span class="mcicon">🎈</span><div><div class="mcname" id="hfn">자유 플레이</div><div class="mctag" id="hft">아기&amp;유아 추천</div></div><span class="mcbadge bf-badge">FREE</span></div>
+      <div class="mcfeats"><span class="mf" id="hff1">시간 자유 선택</span><span class="mf" id="hff2">멀티터치</span><span class="mf" id="hff3">칭찬 메시지</span></div>
+    </button>
+    <button class="mc mc-rank" onclick="showSetup('rank')">
+      <div class="mch"><span class="mcicon">🏆</span><div><div class="mcname" id="hrn">월드 랭크</div><div class="mctag" id="hrt">전 세계 경쟁</div></div><span class="mcbadge br-badge">RANK</span></div>
+      <div class="mcfeats"><span class="mf" id="hrf1">60초 고정</span><span class="mf" id="hrf2">싱글터치</span><span class="mf" id="hrf3">글로벌 순위</span></div>
+    </button>
+  </div>
+</div>
+</div>
+
+<!-- 자유 셋업 -->
+<div id="s-setup-free" class="scr"><div class="setup">
+  <button class="bk" onclick="goHome()">← <span id="sfb">홈</span></button>
+  <div class="sh" id="sfh">🎈 자유 플레이</div>
+  <div class="ssec"><div class="slbl" id="sfnl">이름</div><input class="ni" id="free-name" placeholder="이름 (선택)"></div>
+  <div class="ssec">
+    <div class="slbl" id="sftl">플레이 시간</div>
+    <div class="tmg">
+      <div class="tmc" data-t="30" onclick="setFT(30)"><div class="tv">30</div><div class="tl" id="tl30">초</div></div>
+      <div class="tmc on" data-t="60" onclick="setFT(60)"><div class="tv">1</div><div class="tl" id="tl60">분</div></div>
+      <div class="tmc" data-t="120" onclick="setFT(120)"><div class="tv">2</div><div class="tl" id="tl120">분</div></div>
+      <div class="tmc" data-t="0" onclick="setFT(0)"><div class="tv">∞</div><div class="tl" id="tl0">자유</div></div>
+    </div>
+  </div>
+  <div class="ssec">
+    <div class="slbl" id="sfsl">속도</div>
+    <div class="spg">
+      <div class="spc" data-sp="slow" onclick="setFS('slow')"><span class="spi">🐢</span><div class="spn" id="spfs">느리게</div></div>
+      <div class="spc on" data-sp="normal" onclick="setFS('normal')"><span class="spi">🐇</span><div class="spn" id="spfn">보통</div></div>
+      <div class="spc" data-sp="fast" onclick="setFS('fast')"><span class="spi">🚀</span><div class="spn" id="spff">빠르게</div></div>
+    </div>
+  </div>
+  <button class="btn-free" onclick="startGame('free')" id="go-free">🎈 시작!</button>
+</div></div>
+
+<!-- 랭크 셋업 -->
+<div id="s-setup-rank" class="scr"><div class="rs-wrap">
+  <button class="bk" style="color:rgba(255,255,255,.5);align-self:flex-start" onclick="goHome()">← <span id="srb">홈</span></button>
+  <div style="font-size:42px;animation:bob 1.8s ease-in-out infinite;margin:8px 0">🏆</div>
+  <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:5px;text-align:center" id="srh">월드 랭크 챌린지</div>
+  <div style="font-size:12px;color:#9FA8DA;margin-bottom:14px;text-align:center;line-height:1.55" id="srs">60초, 최대 속도, 싱글터치.<br>오직 반응 속도만이 순위를 결정합니다.</div>
+  <div class="rsr-wrap">
+    <div class="rsr"><span style="font-size:16px;width:22px;text-align:center">⏱</span><span id="rr1">60초 고정</span></div>
+    <div class="rsr"><span style="font-size:16px;width:22px;text-align:center">🚀</span><span id="rr2">최대 속도, 대량 풍선</span></div>
+    <div class="rsr"><span style="font-size:16px;width:22px;text-align:center">☝️</span><span id="rr3">싱글 터치만 허용</span></div>
+    <div class="rsr"><span style="font-size:16px;width:22px;text-align:center">🌊</span><span id="rr4">10개마다 웨이브 폭발</span></div>
+  </div>
+  <input id="rank-name" placeholder="닉네임 (순위 등록용)" style="width:100%;padding:12px 14px;border-radius:12px;border:2px solid rgba(255,255,255,.25);font-size:15px;background:rgba(255,255,255,.12);color:#fff;outline:none;margin-bottom:14px">
+  <button class="btn-rank" onclick="startGame('rank')" id="go-rank">🏆 도전!</button>
+</div></div>
+
+<!-- 게임 -->
+<div id="s-game" class="scr"><div id="gc">
+  <div id="game-bg"></div>
+  <div id="ghud">
+    <div class="hrow">
+      <div id="hsc" class="hsc hsc-f">🎈 0</div>
+      <div id="htm" class="htm htm-f">⏱ 60</div>
+      <button class="hhbtn" onclick="endNow()">🏠</button>
+    </div>
+    <div class="htbar"><div id="htf" class="htf" style="width:100%;background:linear-gradient(90deg,#66BB6A,#43A047)"></div></div>
+  </div>
+  <div id="wprog">
+    <div class="wplb" id="wplb">MISSION 0/10</div>
+    <div class="wpb"><div id="wpf" class="wpf" style="width:0%"></div></div>
+  </div>
+  <div id="wov">
+    <div id="wbadge" class="wbg-r">
+      <span id="wicon" class="wicon">🏅</span>
+      <span id="wtag" class="wtag">MISSION CLEAR</span>
+      <span id="wt1" class="wt1">미션 달성!</span>
+      <span id="wt2" class="wt2">풍선 폭발 · 2배 점수!</span>
+    </div>
+  </div>
+  <div id="praise-ov"><div class="ptxt" id="ptxt">잘했어요!</div></div>
+</div></div>
+
+<!-- 자유 결과 -->
+<div id="s-rf" class="scr"><div class="res res-free">
+  <div class="ra" id="rf-a">🐻</div>
+  <div class="rp" id="rf-p">최고예요!</div>
+  <div class="rsub2" id="rf-s">오늘도 잘했어요!</div>
+  <div class="strow">
+    <div class="stc"><div class="stv" id="rf-pops">0</div><div class="stl" id="rf-pl">풍선</div></div>
+    <div class="stc"><div class="stv" id="rf-ppm">0</div><div class="stl" id="rf-pml">분당</div></div>
+    <div class="stc"><div class="stv" id="rf-best">0</div><div class="stl" id="rf-bl">최고</div></div>
+  </div>
+  <div class="pgwrap"><div class="pglbl"><span id="rf-pgl">성장률</span><span id="rf-pgv">+0%</span></div><div class="pgbar"><div class="pgfill" id="rf-pgf" style="width:0%"></div></div></div>
+  <div class="rbtns">
+    <button class="btn-free" onclick="showSetup('free')" id="rfb-p">🎈 다시 하기</button>
+    <button class="btn-blue" onclick="showBoard()" id="rfb-b">🏆 월드 랭크</button>
+    <button class="btn-gray" onclick="goHome()" id="rfb-h">🏠 홈</button>
+  </div>
+</div></div>
+
+<!-- 랭크 결과 -->
+<div id="s-rr" class="scr"><div class="res res-rank">
+  <div style="font-size:46px;animation:bob 1.8s ease-in-out infinite;margin-bottom:4px">🏆</div>
+  <div class="rscore" id="rr-sc">0</div>
+  <div style="font-size:12px;color:#9FA8DA;margin-bottom:6px" id="rr-pts">점</div>
+  <div class="rnewbest" id="rr-nb" style="display:none">🌟 새 최고 기록!</div>
+  <div class="bkcard">
+    <div class="bkrow"><span id="bk1l">기본</span><span class="bkv" id="bk1v">0</span></div>
+    <div class="bkrow"><span id="bk2l">콤보</span><span class="bkv" id="bk2v">0</span></div>
+    <div class="bkrow"><span id="bk3l">웨이브</span><span class="bkv" id="bk3v">0</span></div>
+    <div class="bkrow"><span id="bk4l">풍선</span><span class="bkv" id="bk4v">0</span></div>
+    <div class="bkrow"><span id="bk5l">최종</span><span class="bkv" id="bk5v">0</span></div>
+  </div>
+  <div class="wposcard"><div class="wpth" id="wp-th">🌍 내 세계 순위</div><div id="wp-list"></div></div>
+  <div class="rbtns">
+    <button class="btn-rank" onclick="startGame('rank')" id="rrb-p">🏆 다시 도전</button>
+    <button class="btn-blue" onclick="showBoard()" id="rrb-b">🌍 전체 순위</button>
+    <button class="btn-gray" onclick="goHome()" id="rrb-h">🏠 홈</button>
+  </div>
+</div></div>
+
+<!-- 순위판 -->
+<div id="s-board" class="scr"><div class="board">
+  <div class="bhead"><button class="bk" style="margin:0" onclick="goHome()">←</button><div class="btitle" id="b-title">🌍 글로벌 순위</div></div>
+  <div class="lbwrap" id="lb-list"></div>
+</div></div>
+
+</div><!-- /app -->
+
+<script>
+// ============================================================
+// 진동
+// ============================================================
+var _vib = false;
+function toggleVibrate() {
+  _vib = !_vib;
+  var btn = document.getElementById('vtog');
+  var lbl = document.getElementById('vtog-label');
+  if (_vib) {
+    btn.classList.add('on');
+    lbl.textContent = G.lang === 'ko' ? '진동 켜짐' : 'Vibration ON';
+    if (navigator.vibrate) navigator.vibrate(30);
+  } else {
+    btn.classList.remove('on');
+    lbl.textContent = G.lang === 'ko' ? '진동 꺼짐' : 'Vibration OFF';
+  }
+}
+function vib(ms) {
+  if (_vib && navigator.vibrate) navigator.vibrate(ms);
+}
+
+// ============================================================
+// 오디오 엔진
+// ============================================================
+var _AC = null;
+var _audioOK = false;
+
+function ensureAudio(cb) {
+  if (!_AC) {
+    try { _AC = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e) { return; }
+  }
+  if (_AC.state === 'running') {
+    cb();
+    return;
+  }
+  _AC.resume().then(function() {
+    _audioOK = true;
+    cb();
+  }).catch(function(){});
+}
+
+function note(freq, type, vol, dur, delay) {
+  if (!_AC || _AC.state !== 'running') return;
+  try {
+    var t = _AC.currentTime + (delay || 0);
+    var o = _AC.createOscillator();
+    var g = _AC.createGain();
+    o.connect(g);
+    g.connect(_AC.destination);
+    o.type = type;
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  } catch(e) {}
+}
+
+function playPop(isWave, combo) {
+  note(110, 'sine', 0.5, 0.12, 0);
+  var f = 520 + Math.random() * 280 + (combo > 4 ? 120 : 0);
+  note(f * 1.4, 'sine', 0.38, 0.2, 0);
+  note(1400 + Math.random() * 400, 'triangle', 0.09, 0.14, 0.01);
+  if (combo >= 4) note(880, 'sine', 0.11, 0.18, 0.06);
+  if (combo >= 7) note(1047, 'sine', 0.09, 0.17, 0.1);
+  if (isWave) {
+    [523, 659, 784].forEach(function(f, i) { note(f, 'sine', 0.13, 0.32, i * 0.04); });
+  }
+}
+
+function playWaveSfx() {
+  note(200, 'sawtooth', 0.18, 0.5, 0);
+  [523, 659, 784, 1047].forEach(function(f, i) { note(f, 'sine', 0.14, 0.5, 0.3 + i * 0.04); });
+}
+
+function playIntro() {
+  [523, 659, 784, 1047].forEach(function(f, i) { note(f, 'sine', 0.16, 0.28, i * 0.12); });
+  setTimeout(function() {
+    [523, 659, 784, 1047].forEach(function(f) { note(f, 'sine', 0.12, 0.65, 0); });
+  }, 600);
+}
+
+function playRankIntro() {
+  [261, 392, 523, 659, 784].forEach(function(f, i) { note(f, 'square', 0.09, 0.17, i * 0.1); });
+  setTimeout(function() {
+    [523, 659, 784].forEach(function(f, i) { note(f, 'square', 0.12, 0.5, i * 0.03); });
+  }, 600);
+}
+
+// BGM (클로저 패턴 - this 없음)
+var BGM = (function() {
+  var timer = null;
+  var step = 0;
+  var mode = null;
+  var fast = false;
+
+  var S = {
+    home: [[523,.05,650],[659,.04,650],[784,.05,650],[880,.04,650],[784,.04,650],[659,.04,650],[523,.05,850],[392,.04,850]],
+    free: [[523,.10,375],[659,.08,375],[784,.08,375],[659,.07,375],[523,.10,375],[587,.08,375],[698,.08,375],[880,.07,375],
+           [784,.08,375],[659,.08,375],[523,.10,375],[659,.07,375],[523,.10,375],[784,.08,375],[880,.08,375],[784,.10,750]],
+    rank: [[523,.07,190],[784,.07,190],[659,.07,190],[523,.07,190],[784,.07,190],[880,.07,190],[784,.07,190],[659,.07,250]],
+    freeF:[[523,.12,190],[659,.10,190],[784,.10,190],[659,.08,190],[523,.12,190],[880,.10,190],[784,.10,190],[659,.08,190]],
+    rankF:[[523,.09,112],[784,.09,112],[659,.09,112],[523,.09,112],[784,.09,112],[880,.09,112],[784,.09,112],[659,.09,112]]
+  };
+
+  function getSeq() {
+    if (mode === 'home') return S.home;
+    if (fast) return mode === 'rank' ? S.rankF : S.freeF;
+    return mode === 'rank' ? S.rank : S.free;
+  }
+
+  function tick() {
+    if (!mode) return;
+    var s = getSeq();
+    var item = s[step % s.length];
+    var f = item[0], v = item[1], ms = item[2];
+    var tp = (mode === 'rank' || fast) ? 'square' : 'sine';
+    note(f, tp, v, ms / 1000 * 0.8, 0);
+    if (step % 2 === 0) note(f * 1.26, 'sine', v * 0.35, ms / 1000 * 0.65, 0);
+    if (step % 4 === 0) note(f / 2, 'triangle', 0.06, ms / 1000 * 0.8, 0);
+    if (step % ((mode === 'rank' || fast) ? 2 : 4) === 0) note(110, 'sine', 0.18, 0.09, 0);
+    step++;
+    timer = setTimeout(tick, ms);
+  }
+
+  return {
+    play: function(m) {
+      clearTimeout(timer);
+      mode = m; fast = false; step = 0;
+      tick();
+    },
+    wave: function(on) {
+      if (fast === on) return;
+      fast = on;
+      clearTimeout(timer);
+      step = 0;
+      tick();
+    },
+    stop: function() {
+      clearTimeout(timer);
+      mode = null;
+      fast = false;
+    }
+  };
+})();
+
+// ============================================================
+// 게임 데이터
+// ============================================================
+var ANIMALS = [
+  {face:'🐻',ko:'곰',en:'Bear',gc:['#FFE0A0','#FFA726','#BF360C'],ears:'<circle cx="18" cy="13" r="11" fill="#FFA726"/><circle cx="62" cy="13" r="11" fill="#FFA726"/><circle cx="18" cy="13" r="7" fill="#FFAB91"/><circle cx="62" cy="13" r="7" fill="#FFAB91"/>',fsv:'<ellipse cx="40" cy="50" rx="13" ry="9" fill="#FFAB91" opacity=".55"/><circle cx="29" cy="36" r="4.5" fill="#2d1100"/><circle cx="51" cy="36" r="4.5" fill="#2d1100"/><circle cx="30.5" cy="34.5" r="1.8" fill="white"/><circle cx="52.5" cy="34.5" r="1.8" fill="white"/><ellipse cx="40" cy="48" rx="4" ry="3" fill="#2d1100"/><path d="M35 53 Q40 58 45 53" stroke="#2d1100" stroke-width="1.5" fill="none"/>'},
+  {face:'🐰',ko:'토끼',en:'Bunny',gc:['#FCE4EC','#F06292','#880E4F'],ears:'<ellipse cx="27" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="53" cy="2" rx="8" ry="18" fill="#F48FB1"/><ellipse cx="27" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/><ellipse cx="53" cy="2" rx="4.5" ry="13" fill="#FCE4EC"/>',fsv:'<circle cx="31" cy="37" r="4" fill="#1a0010"/><circle cx="49" cy="37" r="4" fill="#1a0010"/><circle cx="32.2" cy="35.8" r="1.5" fill="white"/><circle cx="50.2" cy="35.8" r="1.5" fill="white"/><ellipse cx="40" cy="47" rx="3" ry="2.5" fill="#1a0010"/><path d="M36 52 Q40 57 44 52" stroke="#1a0010" stroke-width="1.3" fill="none"/>'},
+  {face:'🐱',ko:'고양이',en:'Cat',gc:['#FFF9C4','#FFD54F','#E65100'],ears:'<polygon points="17,22 10,4 28,14" fill="#FFD54F"/><polygon points="63,22 70,4 52,14" fill="#FFD54F"/><polygon points="19,20 13,8 27,15" fill="#FFCCBC"/><polygon points="61,20 67,8 53,15" fill="#FFCCBC"/>',fsv:'<ellipse cx="29" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(-8,29,37)"/><ellipse cx="51" cy="37" rx="5" ry="4" fill="#1a0800" transform="rotate(8,51,37)"/><circle cx="30" cy="35.5" r="1.6" fill="white"/><circle cx="52" cy="35.5" r="1.6" fill="white"/><circle cx="40" cy="47" r="2.5" fill="#1a0800"/><path d="M36 52 Q40 56 44 52" stroke="#1a0800" stroke-width="1.3" fill="none"/>'},
+  {face:'🐶',ko:'강아지',en:'Dog',gc:['#FFF3E0','#FFCC80','#E65100'],ears:'<ellipse cx="12" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="68" cy="40" rx="10" ry="15" fill="#FFCC80"/><ellipse cx="12" cy="41" rx="6.5" ry="11" fill="#FFB74D"/><ellipse cx="68" cy="41" rx="6.5" ry="11" fill="#FFB74D"/>',fsv:'<circle cx="30" cy="36" r="5" fill="#1a0800"/><circle cx="50" cy="36" r="5" fill="#1a0800"/><circle cx="31.8" cy="34.5" r="2" fill="white"/><circle cx="51.8" cy="34.5" r="2" fill="white"/><ellipse cx="40" cy="50" rx="8" ry="6" fill="#BF360C" opacity=".45"/><ellipse cx="40" cy="49" rx="5" ry="3.5" fill="#1a0800"/><path d="M33 56 Q40 62 47 56" stroke="#1a0800" stroke-width="1.5" fill="none"/>'},
+  {face:'🐸',ko:'개구리',en:'Frog',gc:['#DCEDC8','#7CB342','#1B5E20'],ears:'<circle cx="24" cy="8" r="10" fill="#7CB342"/><circle cx="56" cy="8" r="10" fill="#7CB342"/><circle cx="24" cy="8" r="7" fill="#C5E1A5"/><circle cx="56" cy="8" r="7" fill="#C5E1A5"/><circle cx="24" cy="8" r="4" fill="#1B5E20"/><circle cx="56" cy="8" r="4" fill="#1B5E20"/>',fsv:'<circle cx="33" cy="38" r="3.5" fill="#1B5E20"/><circle cx="47" cy="38" r="3.5" fill="#1B5E20"/><path d="M27 50 Q40 61 53 50" stroke="#1B5E20" stroke-width="2" fill="none"/>'},
+  {face:'🦊',ko:'여우',en:'Fox',gc:['#FFCCBC','#FF7043','#BF360C'],ears:'<polygon points="15,24 8,2 30,16" fill="#FF7043"/><polygon points="65,24 72,2 50,16" fill="#FF7043"/><polygon points="17,22 12,6 28,16" fill="#FFCCBC"/><polygon points="63,22 68,6 52,16" fill="#FFCCBC"/>',fsv:'<circle cx="30" cy="36" r="4.5" fill="#1a0800"/><circle cx="50" cy="36" r="4.5" fill="#1a0800"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><polygon points="40,44 37,49 43,49" fill="#1a0800"/><path d="M35 53 Q40 58 45 53" stroke="#1a0800" stroke-width="1.5" fill="none"/>'},
+  {face:'🐼',ko:'판다',en:'Panda',gc:['#FAFAFA','#E0E0E0','#424242'],ears:'<circle cx="18" cy="13" r="11" fill="#212121"/><circle cx="62" cy="13" r="11" fill="#212121"/>',fsv:'<ellipse cx="29" cy="37" rx="8" ry="7" fill="#212121"/><ellipse cx="51" cy="37" rx="8" ry="7" fill="#212121"/><circle cx="29" cy="37" r="4.5" fill="#111"/><circle cx="51" cy="37" r="4.5" fill="#111"/><circle cx="30.5" cy="35.5" r="1.8" fill="white"/><circle cx="52.5" cy="35.5" r="1.8" fill="white"/><circle cx="40" cy="48" r="3.5" fill="#212121"/><path d="M35 54 Q40 59 45 54" stroke="#212121" stroke-width="1.5" fill="none"/>'},
+  {face:'🐨',ko:'코알라',en:'Koala',gc:['#EDE7F6','#CE93D8','#4A148C'],ears:'<circle cx="14" cy="18" r="13" fill="#9E9E9E"/><circle cx="66" cy="18" r="13" fill="#9E9E9E"/><circle cx="14" cy="18" r="9" fill="#BDBDBD"/><circle cx="66" cy="18" r="9" fill="#BDBDBD"/>',fsv:'<ellipse cx="40" cy="50" rx="9" ry="7" fill="#616161" opacity=".45"/><ellipse cx="40" cy="49" rx="6.5" ry="5" fill="#212121"/><circle cx="30" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="50" cy="36" r="4.5" fill="#1a1a1a"/><circle cx="31.5" cy="34.5" r="1.8" fill="white"/><circle cx="51.5" cy="34.5" r="1.8" fill="white"/><path d="M35 56 Q40 60 45 56" stroke="#1a1a1a" stroke-width="1.5" fill="none"/>'}
+];
+
+var _bid = 0;
+function mkBalloon(a) {
+  var id = _bid++;
+  var lc = a.gc[0], mc = a.gc[1], dc = a.gc[2];
+  return '<svg viewBox="0 0 80 108" xmlns="http://www.w3.org/2000/svg" style="display:block;width:72px;height:97px;">'
+    + '<defs><radialGradient id="rg' + id + '" cx="30%" cy="24%" r="76%">'
+    + '<stop offset="0%" stop-color="' + lc + '"/><stop offset="52%" stop-color="' + mc + '"/><stop offset="100%" stop-color="' + dc + '"/>'
+    + '</radialGradient></defs>'
+    + a.ears
+    + '<ellipse cx="40" cy="41" rx="31" ry="35" fill="url(#rg' + id + ')"/>'
+    + '<ellipse cx="25" cy="24" rx="10" ry="13" fill="rgba(255,255,255,.38)" transform="rotate(-22,25,24)"/>'
+    + a.fsv
+    + '<path d="M34 75 Q40 82 46 75 Q43 76 40 77 Q37 76 34 75Z" fill="' + dc + '" opacity=".85"/>'
+    + '<path d="M40 78 Q37 90 40 104" stroke="' + dc + '" stroke-width="1.8" fill="none" opacity=".5"/>'
+    + '</svg>';
+}
+
+var FREE_BG = '<svg viewBox="0 0 400 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><defs><linearGradient id="fsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#42A5C8"/><stop offset="60%" stop-color="#ADE5FA"/><stop offset="100%" stop-color="#C8F2A0"/></linearGradient></defs><rect width="400" height="700" fill="url(#fsky)"/><circle cx="340" cy="58" r="26" fill="#FFD740"/><circle cx="340" cy="58" r="18" fill="#FFF59D"/><g opacity=".92" fill="white"><circle cx="70" cy="90" r="28"/><circle cx="108" cy="72" r="36"/><circle cx="150" cy="82" r="26"/></g><ellipse cx="200" cy="720" rx="250" ry="72" fill="#66BB6A"/><rect x="0" y="668" width="400" height="32" fill="#43A047"/></svg>';
+var RANK_BG = '<svg viewBox="0 0 400 700" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"><defs><linearGradient id="rsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#03001A"/><stop offset="55%" stop-color="#080530"/><stop offset="100%" stop-color="#12104A"/></linearGradient></defs><rect width="400" height="700" fill="url(#rsky)"/><g fill="white"><circle cx="40" cy="30" r="1.2" opacity=".8"/><circle cx="120" cy="50" r="1.4" opacity=".9"/><circle cx="200" cy="20" r="1.3" opacity=".8"/><circle cx="300" cy="40" r="1.2" opacity=".9"/><circle cx="360" cy="15" r="1.5" opacity=".8"/><circle cx="80" cy="80" r="2" opacity=".9"/></g><circle cx="60" cy="65" r="33" fill="#FFFDE7"/><circle cx="60" cy="65" r="29" fill="#FFF9C4"/><polygon points="0,560 90,400 170,480 250,358 340,448 400,388 400,700 0,700" fill="#060618"/></svg>';
+
+var PC = ['#FF5C5C','#FFD93D','#6BCB77','#4D96FF','#FF922B','#CC5DE8','#20C997','#FF6EB4'];
+var MOCK_LB = [{n:'김민준',f:'🇰🇷',s:1580},{n:'Yuki T.',f:'🇯🇵',s:1450},{n:'Emma W.',f:'🇺🇸',s:1320},{n:'이수아',f:'🇰🇷',s:1260},{n:'Liu Wei',f:'🇨🇳',s:1190},{n:'Carlos R.',f:'🇲🇽',s:1080},{n:'Sophie M.',f:'🇫🇷',s:990},{n:'박지호',f:'🇰🇷',s:870}];
+var SP = {slow:{dur:5.6,vr:2,int:1280},normal:{dur:3.8,vr:1.5,int:900},fast:{dur:2.2,vr:.9,int:580}};
+var RANK_SP = {dur:1.8,vr:.7,int:460};
+var WAVE_AT = 10;
+
+var TXT = {
+  ko:{ltag:'귀여운 동물 풍선을 터트려요!',mfn:'자유 플레이',mft:'아기&유아 추천',mrn:'월드 랭크',mrt:'전 세계 경쟁',hff1:'시간 자유 선택',hff2:'멀티터치',hff3:'칭찬 메시지',hrf1:'60초 고정',hrf2:'싱글터치',hrf3:'글로벌 순위',sfb:'홈',sfh:'🎈 자유 플레이',sfnl:'이름',sftl:'플레이 시간',sfsl:'속도',fph:'이름 (선택)',tl30:'초',tl60:'분',tl120:'분',tl0:'자유',spfs:'느리게',spfn:'보통',spff:'빠르게',srb:'홈',srh:'월드 랭크 챌린지',srs:'60초, 최대 속도, 싱글터치.<br>오직 반응 속도만이 순위를 결정합니다.',rr1:'60초 고정',rr2:'최대 속도, 대량 풍선',rr3:'싱글 터치만 허용',rr4:'10개마다 웨이브 폭발',rph:'닉네임',von:'진동 켜짐',voff:'진동 꺼짐',praises:['잘했어요! 🌟','대단해요! 🔥','최고예요! 👑','완벽해요! 💫'],pbig:['처음이에요! 🎉','잘했어요! 🌟','많이 늘었어요! 🔥','새 기록! 👑','역대 최고! 🏆'],psub:['계속 해봐요!','실력이 늘고 있어요!','훨씬 잘해요!','정말 대단해요!','최고예요!'],rfpl:'풍선',rfpml:'분당',rfbl:'최고',rfpgl:'성장률',rrpts:'점',rrnb:'🌟 새 최고 기록!',bk1:'기본',bk2:'콤보',bk3:'웨이브',bk4:'풍선',bk5:'최종',wpth:'🌍 내 세계 순위',me:'나',btitle:'🌍 글로벌 순위'},
+  en:{ltag:'Pop the cute animal balloons!',mfn:'Free Play',mft:'For babies & toddlers',mrn:'World Rank',mrt:'Compete globally',hff1:'Choose time',hff2:'Multi-touch',hff3:'Praise messages',hrf1:'60 sec fixed',hrf2:'Single touch',hrf3:'Global ranking',sfb:'Home',sfh:'🎈 Free Play',sfnl:'Name',sftl:'Play Time',sfsl:'Speed',fph:'Name (optional)',tl30:'sec',tl60:'min',tl120:'min',tl0:'Free',spfs:'Slow',spfn:'Normal',spff:'Fast',srb:'Home',srh:'World Rank Challenge',srs:'60 sec, max speed, single touch.<br>Only reflexes decide your rank.',rr1:'60 sec fixed',rr2:'Max speed, wave mode',rr3:'Single touch only',rr4:'Wave burst every 10 pops',rph:'Nickname',von:'Vibration ON',voff:'Vibration OFF',praises:['Good! 🌟','Amazing! 🔥','Awesome! 👑','Perfect! 💫'],pbig:['First time! 🎉','Good job! 🌟','Much better! 🔥','New record! 👑','All-time best! 🏆'],psub:['Keep going!','Improving!','Way better!','Amazing!','World class!'],rfpl:'Pops',rfpml:'Per min',rfbl:'Best',rfpgl:'Progress',rrpts:'pts',rrnb:'🌟 New Best!',bk1:'Base',bk2:'Combo',bk3:'Wave',bk4:'Pops',bk5:'Final',wpth:'🌍 My World Rank',me:'Me',btitle:'🌍 Global Ranking'}
+};
+
+var G = {
+  lang:'ko', mode:'free', freeTime:60, freeSpeed:'normal',
+  score:0, pops:0, combo:0, waveCount:0,
+  basePts:0, comboPts:0, wavePts:0,
+  timeLeft:60, isWave:false, gameRunning:false,
+  sessionBest:0, allBest:0, prevBest:0,
+  spawnT:null, intT:null, comboT:null, waveT:null, praiseT:null
+};
+var sessionRank = [];
+var _firstDone = false;
+
+// ── 모든 터치: 오디오 컨텍스트 깨우기 ──
+document.addEventListener('pointerdown', function() {
+  if (!_firstDone) {
+    _firstDone = true;
+    ensureAudio(function() {
+      _audioOK = true;
+      playIntro();
+      BGM.play('home');
+    });
+  } else if (_AC && _AC.state === 'suspended') {
+    _AC.resume().catch(function(){});
+  }
+}, true);
+
+// ── 화면 전환 ──
+function showScr(id) {
+  var all = document.querySelectorAll('.scr');
+  for (var i = 0; i < all.length; i++) all[i].classList.remove('on');
+  document.getElementById(id).classList.add('on');
+}
+
+function goHome() {
+  showScr('s-home');
+  if (_audioOK) BGM.play('home');
+}
+
+function show(id) {
+  showScr(id);
+}
+
+function setLang(l) {
+  G.lang = l;
+  var btns = document.querySelectorAll('.lb');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].classList.toggle('on', btns[i].getAttribute('data-l') === l);
+  }
+  applyLang();
+}
+
+function applyLang() {
+  var t = TXT[G.lang];
+  function s(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  function sh(id, v) { var e = document.getElementById(id); if (e) e.innerHTML = v; }
+  function p(id, v) { var e = document.getElementById(id); if (e) e.placeholder = v; }
+  s('h-tag',t.ltag); s('hfn',t.mfn); s('hft',t.mft); s('hrn',t.mrn); s('hrt',t.mrt);
+  s('hff1',t.hff1); s('hff2',t.hff2); s('hff3',t.hff3);
+  s('hrf1',t.hrf1); s('hrf2',t.hrf2); s('hrf3',t.hrf3);
+  s('sfb',t.sfb); s('sfh',t.sfh); s('sfnl',t.sfnl); s('sftl',t.sftl); s('sfsl',t.sfsl);
+  p('free-name',t.fph);
+  s('tl30',t.tl30); s('tl60',t.tl60); s('tl120',t.tl120); s('tl0',t.tl0);
+  s('spfs',t.spfs); s('spfn',t.spfn); s('spff',t.spff);
+  s('srb',t.srb); s('srh',t.srh); sh('srs',t.srs);
+  s('rr1',t.rr1); s('rr2',t.rr2); s('rr3',t.rr3); s('rr4',t.rr4);
+  p('rank-name',t.rph);
+  s('rf-pl',t.rfpl); s('rf-pml',t.rfpml); s('rf-bl',t.rfbl); s('rf-pgl',t.rfpgl);
+  s('rr-pts',t.rrpts); s('rr-nb',t.rrnb);
+  s('bk1l',t.bk1); s('bk2l',t.bk2); s('bk3l',t.bk3); s('bk4l',t.bk4); s('bk5l',t.bk5);
+  s('wp-th',t.wpth); s('b-title',t.btitle);
+  s('vtog-label', _vib ? t.von : t.voff);
+  var gf = document.getElementById('go-free');
+  if (gf) gf.textContent = G.lang === 'ko' ? '🎈 시작!' : '🎈 Start!';
+  var gr = document.getElementById('go-rank');
+  if (gr) gr.textContent = G.lang === 'ko' ? '🏆 도전!' : '🏆 Challenge!';
+  var ko = ['🎈 다시 하기','🏆 월드 랭크','🏠 홈','🏆 다시 도전','🌍 전체 순위','🏠 홈'];
+  var en = ['🎈 Play Again','🏆 World Rank','🏠 Home','🏆 Try Again','🌍 Full Ranking','🏠 Home'];
+  ['rfb-p','rfb-b','rfb-h','rrb-p','rrb-b','rrb-h'].forEach(function(id, i) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = G.lang === 'ko' ? ko[i] : en[i];
+  });
+}
+
+function showSetup(m) {
+  if (m === 'rank') ensureAudio(playRankIntro);
+  showScr(m === 'rank' ? 's-setup-rank' : 's-setup-free');
+}
+
+function setFT(t) {
+  G.freeTime = t;
+  var cs = document.querySelectorAll('#s-setup-free .tmc');
+  for (var i = 0; i < cs.length; i++) {
+    cs[i].classList.toggle('on', cs[i].getAttribute('data-t') == t);
+  }
+}
+
+function setFS(s) {
+  G.freeSpeed = s;
+  var cs = document.querySelectorAll('#s-setup-free .spc');
+  for (var i = 0; i < cs.length; i++) {
+    cs[i].classList.toggle('on', cs[i].getAttribute('data-sp') === s);
+  }
+}
+
+function startGame(m) {
+  G.mode = m;
+  G.score = 0; G.pops = 0; G.combo = 0; G.waveCount = 0;
+  G.basePts = 0; G.comboPts = 0; G.wavePts = 0;
+  G.isWave = false; G.gameRunning = true; G.prevBest = G.sessionBest;
+  clearTimeout(G.spawnT); clearInterval(G.intT);
+  clearTimeout(G.comboT); clearTimeout(G.waveT); clearTimeout(G.praiseT);
+
+  var gc = document.getElementById('gc');
+  var els = gc.querySelectorAll('.balloon,.pfx,.pt,.sfl,.cld-el');
+  for (var i = 0; i < els.length; i++) els[i].remove();
+
+  var isR = m === 'rank';
+  document.getElementById('game-bg').innerHTML = isR ? RANK_BG : FREE_BG;
+  document.getElementById('hsc').className = 'hsc ' + (isR ? 'hsc-r' : 'hsc-f');
+  document.getElementById('htm').className = 'htm ' + (isR ? 'htm-r' : 'htm-f');
+  document.getElementById('wprog').style.display = 'block';
+  document.getElementById('wbadge').className = isR ? 'wbg-r' : 'wbg-f';
+  document.getElementById('wov').classList.remove('on');
+  G.timeLeft = isR ? 60 : (G.freeTime > 0 ? G.freeTime : -1);
+
+  // 화면 전환 (BGM 건드리지 않음)
+  showScr('s-game');
+  updateHUD(); updateWP();
+  spawnClouds(isR);
+  BGM.play(m);
+
+  var _st = Date.now();
+  if (isR) {
+    for (var i = 0; i < 4; i++) setTimeout(spawnBalloon, i * 160);
+    var si = RANK_SP.int;
+    (function next() {
+      if (!G.gameRunning) return;
+      G.spawnT = setTimeout(function() {
+        spawnBalloon();
+        if (Math.random() > .62) spawnBalloon();
+        si = Math.max(340, si - 3);
+        next();
+      }, si + Math.random() * 180);
+    })();
+    G.intT = setInterval(function() {
+      if (!G.gameRunning) { clearInterval(G.intT); return; }
+      G.timeLeft = Math.max(0, 60 - Math.floor((Date.now() - _st) / 1000));
+      updateHUD();
+      if (G.timeLeft <= 0) { clearInterval(G.intT); endGame(); }
+    }, 200);
+  } else {
+    spawnBalloon(); spawnBalloon();
+    setTimeout(spawnBalloon, 450);
+    var sp = SP[G.freeSpeed];
+    var si = sp.int;
+    (function next() {
+      if (!G.gameRunning) return;
+      G.spawnT = setTimeout(function() {
+        spawnBalloon();
+        si = Math.max(580, si - 4);
+        next();
+      }, si + Math.random() * 300);
+    })();
+    if (G.freeTime > 0) {
+      G.intT = setInterval(function() {
+        if (!G.gameRunning) { clearInterval(G.intT); return; }
+        G.timeLeft = Math.max(0, G.freeTime - Math.floor((Date.now() - _st) / 1000));
+        updateHUD();
+        if (G.timeLeft <= 0) { clearInterval(G.intT); endGame(); }
+      }, 200);
+    }
+  }
+}
+
+function spawnBalloon() {
+  if (!G.gameRunning) return;
+  var gc = document.getElementById('gc');
+  var a = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+  var sp = G.mode === 'rank' ? RANK_SP : SP[G.freeSpeed];
+  var dur = (sp.dur || 2.2) + Math.random() * (sp.vr || .7);
+  var x = 8 + Math.random() * (gc.offsetWidth - 88);
+  var sc = .78 + Math.random() * .32;
+  var isR = G.mode === 'rank';
+  var el = document.createElement('div');
+  el.className = 'balloon';
+  el.style.cssText = 'left:' + x + 'px;bottom:-100px;width:80px;animation-duration:' + dur + 's;transform:scale(' + sc + ');';
+  el.innerHTML = mkBalloon(a) + '<div class="bname' + (isR ? ' bname-r' : '') + '">' + (a[G.lang] || a.en) + '</div>';
+  el.addEventListener('pointerdown', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    if (!el.parentNode || !G.gameRunning) return;
+    var r = el.getBoundingClientRect(), gr = gc.getBoundingClientRect();
+    doPop(el, a, gc, r.left - gr.left + r.width / 2, r.top - gr.top + r.height / 2);
+  }, {passive: false});
+  el.addEventListener('animationend', function() { el.remove(); });
+  gc.appendChild(el);
+}
+
+function doPop(el, a, gc, px, py) {
+  el.remove();
+  var basePt = G.mode === 'rank' ? 3 : 1;
+  G.pops++; G.combo++;
+  clearTimeout(G.comboT);
+  G.comboT = setTimeout(function() { G.combo = 0; }, 1400);
+  var mult = G.combo >= 8 ? 3 : G.combo >= 5 ? 2 : G.combo >= 3 ? 1.5 : 1;
+  var pts = Math.round(basePt * mult);
+  if (G.isWave) { G.wavePts += pts; pts *= 2; }
+  G.basePts += basePt;
+  G.comboPts += Math.round(basePt * (mult - 1));
+  G.score += pts;
+  if (G.score > G.sessionBest) G.sessionBest = G.score;
+  updateHUD(); updateWP();
+
+  // 진동
+  vib(G.isWave ? 30 : 15);
+
+  // WAVE 트리거
+  if (G.pops > 0 && G.pops % WAVE_AT === 0 && !G.isWave) triggerWave();
+  if (G.mode === 'free' && G.pops % 5 === 0 && !G.isWave) showPraise();
+
+  // 이펙트
+  var fx = document.createElement('div');
+  fx.className = 'pfx';
+  fx.style.cssText = 'left:' + (px - 22) + 'px;top:' + (py - 22) + 'px;background:none;border:none;';
+  fx.textContent = a.face;
+  gc.appendChild(fx);
+  fx.addEventListener('animationend', function() { fx.remove(); });
+
+  var cnt = G.isWave ? 18 : 11;
+  for (var i = 0; i < cnt; i++) {
+    var p = document.createElement('div');
+    p.className = 'pt';
+    var ang = (i / cnt) * Math.PI * 2 + Math.random() * .3;
+    var d = 32 + Math.random() * 48;
+    var sz = Math.round(4 + Math.random() * 8);
+    p.style.cssText = 'left:' + (px - sz/2) + 'px;top:' + (py - sz/2) + 'px;width:' + sz + 'px;height:' + sz + 'px;background:' + PC[i % PC.length] + ';border:none;';
+    p.style.setProperty('--dx', Math.cos(ang) * d + 'px');
+    p.style.setProperty('--dy', Math.sin(ang) * d + 'px');
+    gc.appendChild(p);
+    p.addEventListener('animationend', function() { p.remove(); });
+  }
+
+  var sf = document.createElement('div');
+  sf.className = 'sfl';
+  sf.textContent = '+' + pts + (mult > 1 ? ' x' + (mult === 1.5 ? '1.5' : mult) : '') + (G.isWave ? ' 🌊' : '');
+  sf.style.cssText = 'left:' + (px - 28) + 'px;top:' + (py - 42) + 'px;color:' + (G.isWave ? '#FFD700' : G.mode === 'rank' ? '#FFE082' : '#333') + ';text-shadow:0 1px 5px rgba(0,0,0,.3);background:none;border:none;';
+  gc.appendChild(sf);
+  sf.addEventListener('animationend', function() { sf.remove(); });
+
+  ensureAudio(function() { playPop(G.isWave, G.combo); });
+}
+
+function showPraise() {
+  var t = TXT[G.lang];
+  document.getElementById('ptxt').textContent = t.praises[Math.floor(Math.random() * t.praises.length)];
+  var ov = document.getElementById('praise-ov');
+  ov.classList.add('on');
+  clearTimeout(G.praiseT);
+  G.praiseT = setTimeout(function() { ov.classList.remove('on'); }, 1200);
+}
+
+function triggerWave() {
+  G.isWave = true;
+  G.waveCount++;
+  var isKo = G.lang === 'ko';
+  var badges = ['🥉','🥈','🥇','🏅','🎖️','🏆','💎'];
+  document.getElementById('wicon').textContent = badges[Math.min(G.waveCount - 1, 6)];
+  document.getElementById('wtag').textContent = 'MISSION CLEAR';
+  document.getElementById('wt1').textContent = isKo ? (G.waveCount + '번째 달성!') : ('Mission #' + G.waveCount + '!');
+  document.getElementById('wt2').textContent = isKo ? '풍선 폭발 · 2배 점수!' : 'Balloon Rush · 2x Points!';
+  document.getElementById('wbadge').className = G.mode === 'rank' ? 'wbg-r' : 'wbg-f';
+  document.getElementById('wov').classList.add('on');
+  vib([50, 30, 50]);
+  ensureAudio(playWaveSfx);
+  BGM.wave(true);
+  for (var i = 0; i < 14; i++) setTimeout(spawnBalloon, i * 100);
+  G.waveT = setTimeout(function() {
+    document.getElementById('wov').classList.remove('on');
+    G.isWave = false;
+    BGM.wave(false);
+  }, 3000);
+  updateWP();
+}
+
+function updateHUD() {
+  var sc = document.getElementById('hsc');
+  if (sc) sc.textContent = '🎈 ' + G.score.toLocaleString();
+  var tm = document.getElementById('htm');
+  var tf = document.getElementById('htf');
+  if (G.timeLeft >= 0) {
+    var l = G.lang;
+    var d = G.timeLeft >= 60
+      ? (l === 'ko' ? Math.ceil(G.timeLeft / 60) + '분' + (G.timeLeft % 60 > 0 ? ' ' + G.timeLeft % 60 + '초' : '') : Math.ceil(G.timeLeft / 60) + 'm')
+      : G.timeLeft + (l === 'ko' ? '초' : 's');
+    if (tm) { tm.textContent = '⏱ ' + d; tm.classList.toggle('red', G.timeLeft <= 10); }
+    var tot = G.mode === 'rank' ? 60 : G.freeTime;
+    if (tf && tot > 0) {
+      var pct = Math.max(0, G.timeLeft / tot * 100);
+      tf.style.width = pct + '%';
+      tf.style.background = pct > 30 ? 'linear-gradient(90deg,#66BB6A,#43A047)' : 'linear-gradient(90deg,#FF5C5C,#EF5350)';
+    }
+  } else {
+    if (tm) tm.textContent = '∞';
+    if (tf) tf.style.width = '100%';
+  }
+}
+
+function updateWP() {
+  var cur = G.isWave ? WAVE_AT : (G.pops % WAVE_AT);
+  var pct = G.isWave ? 100 : (cur / WAVE_AT * 100);
+  var f = document.getElementById('wpf');
+  var l = document.getElementById('wplb');
+  if (f) { f.style.width = pct + '%'; f.className = 'wpf' + (G.isWave ? ' wv' : ''); }
+  if (l) l.textContent = G.isWave ? (G.lang === 'ko' ? '🌊 WAVE 발동 중!' : '🌊 WAVE ACTIVE!') : 'MISSION ' + cur + '/' + WAVE_AT;
+}
+
+function endGame() {
+  G.gameRunning = false;
+  G.isWave = false;
+  clearTimeout(G.spawnT); clearInterval(G.intT);
+  clearTimeout(G.comboT); clearTimeout(G.waveT);
+  BGM.stop();
+  if (G.mode === 'free') showRF(); else showRR();
+}
+
+function endNow() { endGame(); }
+
+function showRF() {
+  var t = TXT[G.lang];
+  var secs = G.freeTime > 0 ? G.freeTime : Math.max(1, G.pops * 1.9);
+  var ppm = Math.round(G.pops / (secs / 60));
+  var grow = G.prevBest > 0 ? Math.min(200, Math.round((G.score - G.prevBest) / G.prevBest * 100)) : 0;
+  var lvl = G.prevBest === 0 ? 0 : G.score > G.prevBest * 1.3 ? 3 : G.score > G.prevBest * 1.1 ? 2 : G.score > G.prevBest ? 1 : 0;
+  var an = ANIMALS[Math.floor(Math.random() * ANIMALS.length)];
+  document.getElementById('rf-a').textContent = an.face;
+  document.getElementById('rf-p').textContent = t.pbig[Math.min(lvl, 4)];
+  document.getElementById('rf-s').textContent = t.psub[Math.min(lvl, 4)];
+  document.getElementById('rf-pops').textContent = G.pops;
+  document.getElementById('rf-ppm').textContent = ppm;
+  document.getElementById('rf-best').textContent = G.sessionBest.toLocaleString();
+  document.getElementById('rf-pgv').textContent = (grow > 0 ? '+' : '') + grow + '%';
+  document.getElementById('rf-pgf').style.width = Math.min(100, Math.abs(grow)) + '%';
+  show('s-rf');
+}
+
+function showRR() {
+  var t = TXT[G.lang];
+  var isN = G.score > G.allBest;
+  if (isN) G.allBest = G.score;
+  var rname = (document.getElementById('rank-name') || {}).value || 'Player';
+  if (rname) sessionRank.push({n: rname, f: '🌟', s: G.score, isMe: true});
+  function sv(id, v) { var e = document.getElementById(id); if (e) e.textContent = v; }
+  sv('rr-sc', G.score.toLocaleString()); sv('rr-pts', t.rrpts);
+  document.getElementById('rr-nb').style.display = isN ? 'inline-block' : 'none';
+  sv('bk1v', G.basePts.toLocaleString()); sv('bk2v', G.comboPts.toLocaleString()); sv('bk3v', G.wavePts.toLocaleString());
+  sv('bk4v', G.pops + (G.lang === 'ko' ? '개' : '')); sv('bk5v', G.score.toLocaleString());
+  var all = MOCK_LB.slice();
+  sessionRank.forEach(function(r) { if (!all.find(function(x) { return x.n === r.n && x.s === r.s; })) all.push(r); });
+  all.sort(function(a, b) { return b.s - a.s; });
+  var myI = all.findIndex(function(r) { return r.isMe; });
+  var toShow = {0:1, 1:1, 2:1};
+  if (myI >= 0) [myI-1, myI, myI+1].forEach(function(i) { if (i >= 0 && i < all.length) toShow[i] = 1; });
+  var wp = document.getElementById('wp-list'); wp.innerHTML = '';
+  Object.keys(toShow).map(Number).sort(function(a,b){return a-b;}).forEach(function(i) {
+    var r = all[i], rk = i + 1;
+    var rm = rk === 1 ? 'g' : rk === 2 ? 's' : rk === 3 ? 'b' : '';
+    var rl = rk === 1 ? '🥇' : rk === 2 ? '🥈' : rk === 3 ? '🥉' : rk;
+    var me = r.isMe ? '<span class="metag">' + t.me + '</span>' : '';
+    var row = document.createElement('div'); row.className = 'wpr' + (r.isMe ? ' me' : '');
+    row.innerHTML = '<div class="wprank ' + rm + '">' + rl + '</div><div class="wpflag">' + r.f + '</div><div class="wpname">' + r.n + me + '</div><div class="wpscore">' + r.s.toLocaleString() + '</div>';
+    wp.appendChild(row);
+  });
+  show('s-rr');
+}
+
+function showBoard() {
+  var all = MOCK_LB.slice();
+  sessionRank.forEach(function(r) { if (!all.find(function(x) { return x.n === r.n && x.s === r.s; })) all.push(r); });
+  all.sort(function(a, b) { return b.s - a.s; });
+  var t = TXT[G.lang];
+  var list = document.getElementById('lb-list'); list.innerHTML = '';
+  all.slice(0, 20).forEach(function(r, i) {
+    var rk = i + 1, rl = rk === 1 ? '🥇' : rk === 2 ? '🥈' : rk === 3 ? '🥉' : rk;
+    var row = document.createElement('div'); row.className = 'lbr' + (r.isMe ? ' me' : '');
+    row.innerHTML = '<div class="lbrk">' + rl + '</div><div class="lbflag">' + r.f + '</div><div class="lbname">' + r.n + (r.isMe ? '<span class="metag">' + t.me + '</span>' : '') + '</div><div class="lbsc">' + r.s.toLocaleString() + '</div>';
+    list.appendChild(row);
+  });
+  show('s-board');
+}
+
+function spawnClouds(isR) {
+  var gc = document.getElementById('gc');
+  for (var i = 0; i < 4; i++) {
+    var c = document.createElement('div'); c.className = 'cld-el';
+    var h = 16 + Math.random() * 22, w = 72 + Math.random() * 90;
+    var top = 18 + Math.random() * 100, dur = 20 + Math.random() * 13;
+    c.style.cssText = 'position:absolute;background:rgba(255,255,255,' + (isR ? .1 : .88) + ');border-radius:38px;width:' + w + 'px;height:' + h + 'px;top:' + top + 'px;left:-220px;animation:cldDrift ' + dur + 's linear infinite;animation-delay:-' + (Math.random() * dur) + 's;z-index:3;pointer-events:none;';
+    gc.appendChild(c);
+  }
+}
+
+applyLang();
+</script>
+</body>
+</html>
