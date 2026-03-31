@@ -1,0 +1,13 @@
+{
+  "name": "BubblePop Friends",
+  "short_name": "BubblePop",
+  "description": "귀여운 동물 풍선 터뜨리기 게임",
+  "start_url": "./game.html",
+  "display": "standalone",
+  "background_color": "#FFF3E0",
+  "theme_color": "#FF5C5C",
+  "orientation": "portrait-primary",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
